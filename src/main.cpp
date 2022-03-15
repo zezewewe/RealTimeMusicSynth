@@ -8,15 +8,15 @@
 #include <ES_CAN.h>
 
 // Interrupt 1
-void sampleISR() {
-  static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
-  phaseAcc += currentStepSize; 
+// void sampleISR() {
+//   static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
+//   phaseAcc += currentStepSize; 
 
-  int32_t Vout = phaseAcc >> 24;
-  Vout = Vout >> (8 - knob3Rotation/2);
+//   int32_t Vout = phaseAcc >> 24;
+//   Vout = Vout >> (8 - knob3Rotation/2);
 
-  analogWrite(OUTR_PIN, Vout + 128);
-}
+//   analogWrite(OUTR_PIN, Vout + 128);
+// }
 
 // Interrupt 2
 void CAN_RX_ISR(void){
