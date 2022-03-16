@@ -15,14 +15,22 @@ void sampleISR() {
   static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
   phaseAcc += currentStepSize; 
 
-  // if (knob2Rotation == 0){
+  // if (knob2Rotation == 0 || knob2Rotation ==2 ){ // Sawtooth wave or sinusoid 
     int32_t Vout = phaseAcc >> 24;
-    Vout = Vout >> (8 - knob3Rotation/2);
+    // if (knob2Rotation ==2) { // sinusoid
+    //   Vout = sineAmplitudeArray[Vout+128];
+    // }
+  // }
+  
+  // else if (knob2Rotation == 1) { // triangle wave
+    // if (phaseAcc <= 0) {
+      // int32_t Vout = 128+2*phaseAcc;
+    // } else {
+      // int32_t Vout = 127-2*phaseAcc;
+    // } 
   // }
 
-  int32_t Vout = phaseAcc >> 24;
   Vout = Vout >> (8 - knob3Rotation/2);
-
   analogWrite(OUTR_PIN, Vout + 128);
 }
 
@@ -67,27 +75,39 @@ void scanKeysTask(void * pvParameters) {
   while(1) {
     vTaskDelayUntil( &xLastWakeTime, xFrequency ); // blocks execution until a certain time has passed since the last time the function was completed
     uint8_t keyIdx=12;
+    volatile uint8_t localKeyArray[7];
 
     xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
+    localKeyArray[0] = keyArray[0];
+    localKeyArray[1] = keyArray[1];
+    localKeyArray[2] = keyArray[2];
+    localKeyArray[3] = keyArray[3];
+    localKeyArray[4] = keyArray[4];
+    localKeyArray[5] = keyArray[5];
+    localKeyArray[6] = keyArray[6];
+    xSemaphoreGive(keyArrayMutex);
+
+
     // Store pressed keys into keyArray
     for (uint8_t i = 0; i < 5; i++) {
       setRow(i);
       delayMicroseconds(3);
       uint8_t keys = readCols(i);
-      keyArray[i] = keys;
+      localKeyArray[i] = keys;
     }
 
-    knob1.updateRotationValue(keyArray[4]);
+    knob1.updateRotationValue(localKeyArray[4]);
     __atomic_store_n(&knob1Rotation,knob1.returnRotationValue(),__ATOMIC_RELAXED);
 
-    knob2.updateRotationValue(keyArray[3]);
-    __atomic_store_n(&knob2Rotation,knob2.returnRotationValue(),__ATOMIC_RELAXED);
+    // knob2.updateRotationValue(localKeyArray[3]);
+    // __atomic_store_n(&knob2Rotation,knob2.returnRotationValue(),__ATOMIC_RELAXED);
 
-
+    knob3.updateRotationValue(localKeyArray[3]);
+    __atomic_store_n(&knob3Rotation,knob3.returnRotationValue(),__ATOMIC_RELAXED);
 
     // Identify keys pressed and store into volatile currentStepSize
     for (uint8_t i=0; i < 3; i++) {
-      uint8_t currentKeyState = keyArray[i];
+      uint8_t currentKeyState = localKeyArray[i];
 
       // find out the key being pressed and set keyIdx
       // if (keysTmp == 0xf) { // if keysTmp is 15, none in this row is pressed
@@ -129,9 +149,18 @@ void scanKeysTask(void * pvParameters) {
     }
     // __atomic_store_n(&currentStepSize,stepSizes[keyIdx],__ATOMIC_RELAXED);
 
-    knob3.updateRotationValue(keyArray[3]);
-    __atomic_store_n(&knob3Rotation,knob3.returnRotationValue(),__ATOMIC_RELAXED);
+    xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
+    keyArray[0] = localKeyArray[0];
+    keyArray[1] = localKeyArray[1];
+    keyArray[2] = localKeyArray[2];
+    keyArray[3] = localKeyArray[3];
+    keyArray[4] = localKeyArray[4];
+    keyArray[5] = localKeyArray[5];
+    keyArray[6] = localKeyArray[6];
     xSemaphoreGive(keyArrayMutex);
+
+
+
   }
 }
 
@@ -172,7 +201,7 @@ void displayUpdateTask(void * pvParameters) {
     xSemaphoreGive(keyArrayMutex);
 
     u8g2.setCursor(2,30);
-    u8g2.print(knob2Rotation);
+    u8g2.print(knob1Rotation);
 
     u8g2.setCursor(66,30);
     u8g2.print((char) RX_Message_local[0]);
@@ -200,19 +229,11 @@ void decodeTask(void * pvParameters) {
 
 
     if (RX_Message_local[0]=='R') {
-      localStepSize = 0;
+      __atomic_store_n(&currentStepSize,(localStepSize==0),__ATOMIC_RELAXED);
     } else if (RX_Message[0]=='P'){
       localStepSize = stepSizes[RX_Message[2]];
-      localStepSize = (localStepSize << (RX_Message[1]-4)); // scale step size by appropriate octave for correct freq
+      __atomic_store_n(&currentStepSize,(localStepSize << (RX_Message[1]-4)),__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
     }
-
-    // currentStepSize = localStepSize;
-    xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
-    __atomic_store_n(&currentStepSize,localStepSize,__ATOMIC_RELAXED);
-    xSemaphoreGive(keyArrayMutex);
-
-
-
   }
 }
 
