@@ -13,24 +13,38 @@
 // Interrupt 1
 void sampleISR() {
   static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
+  static int32_t phaseAcc2 = 0;
+  static int32_t phaseAcc3 = 0;
+
+  // static int32_t phaseAcc3 = 0;
+  // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
   phaseAcc += currentStepSize; 
+  phaseAcc2 += (int32_t)(currentStepSize*pow(2,4.0/12.0));
+  phaseAcc3 += (int32_t)(currentStepSize*pow(2,7.0/12.0));
 
-  // if (knob2Rotation == 0 || knob2Rotation ==2 ){ // Sawtooth wave or sinusoid 
-    int32_t Vout = phaseAcc >> 24;
-    // if (knob2Rotation ==2) { // sinusoid
-    //   Vout = sineAmplitudeArray[Vout+128];
-    // }
-  // }
+  // phaseAcc3 += currentStep
+  int32_t Vout;
+  int32_t currentPhase = phaseAcc>>24;
+  int32_t currentPhase2 = phaseAcc2>>24;
+  int32_t currentPhase3 = phaseAcc3>>24;
+  uint8_t localKnob1 = __atomic_load_n(&knob1Rotation, __ATOMIC_RELAXED); // retrieve required waveform
+  uint8_t localKnob3 = __atomic_load_n(&knob3Rotation, __ATOMIC_RELAXED); // retrieve required volume
   
-  // else if (knob2Rotation == 1) { // triangle wave
-    // if (phaseAcc <= 0) {
-      // int32_t Vout = 128+2*phaseAcc;
-    // } else {
-      // int32_t Vout = 127-2*phaseAcc;
-    // } 
-  // }
+  if (localKnob1==0){ // sawtooth
+    Vout = currentPhase + currentPhase2 + currentPhase3;
+  } else if (localKnob1==1) { // triangle
+    if (currentPhase<= 0) { 
+      Vout = 128+2*currentPhase;
+    } else {
+      Vout = 127-2*currentPhase;
+    } 
+  } else if (localKnob1==2) { // sinusoid
+    Vout = sineAmplitudeArray[currentPhase+128];
+  }
 
-  Vout = Vout >> (8 - knob3Rotation/2);
+  // Volume control
+  Vout = Vout >> (8 - localKnob3/2);
+
   analogWrite(OUTR_PIN, Vout + 128);
 }
 
