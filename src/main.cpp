@@ -10,7 +10,7 @@
 
 
 
-// Interrupt 1
+// Interrupt 1: 
 void sampleISR() {
   static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
   static int32_t phaseAcc2 = 0;
@@ -44,7 +44,6 @@ void sampleISR() {
 
   // Volume control
   Vout = Vout >> (8 - localKnob3/2);
-
   analogWrite(OUTR_PIN, Vout + 128);
 }
 
@@ -220,10 +219,10 @@ void decodeTask(void * pvParameters) {
 
 
     if (RX_Message_local[0]=='R') {
-      __atomic_store_n(&currentStepSize,(localStepSize==0),__ATOMIC_RELAXED);
-    } else if (RX_Message[0]=='P'){
+      __atomic_store_n(&currentStepSize,0,__ATOMIC_RELAXED);
+    } else { // if index 0 is P
       localStepSize = stepSizes[RX_Message[2]];
-      __atomic_store_n(&currentStepSize,(localStepSize << (RX_Message[1]-4)),__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
+      __atomic_store_n(&currentStepSize,(localStepSize << (RX_Message[1]-4)),__ATOMIC_RELAXED);
     }
   }
 }
@@ -251,7 +250,7 @@ void setup() {
 
   //Initialise display
   setOutMuxBit(DRST_BIT, LOW);  //Assert display logic reset
-  delayMicroseconds(2);
+  delayMicroseconds(3);
   setOutMuxBit(DRST_BIT, HIGH);  //Release display logic reset
   u8g2.begin();
   setOutMuxBit(DEN_BIT, HIGH);  //Enable display power supply
@@ -263,7 +262,7 @@ void setup() {
   //Initialize timer to trigger the INTERRUPT that will call sampleISR()
   TIM_TypeDef *Instance = TIM1; 
   HardwareTimer *sampleTimer = new HardwareTimer(Instance);
-  sampleTimer->setOverflow(22000, HERTZ_FORMAT); // function triggered by iinterrupt 22k times per second
+  sampleTimer->setOverflow(22000, HERTZ_FORMAT); // function triggered by interrupt 22k times per second
   sampleTimer->attachInterrupt(sampleISR);
   sampleTimer->resume();
 
