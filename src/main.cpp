@@ -10,12 +10,15 @@
 
 
 
-// Interrupt 1
+// Interrupt 1: 
 void sampleISR() {
   static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
+  static int32_t phaseAcc2 = 0;
+  static int32_t phaseAcc3 = 0;
+  
+  // static int32_t phaseAcc3 = 0;
+  // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
   phaseAcc += currentStepSize; 
-<<<<<<< Updated upstream
-=======
   phaseAcc2 += (int32_t)(currentStepSize*pow(2,4.0/12.0));
   phaseAcc3 += (int32_t)(currentStepSize*pow(2,7.0/12.0));
 
@@ -26,7 +29,7 @@ void sampleISR() {
   int32_t currentPhase3 = phaseAcc3>>24;
   uint8_t localKnob1 = __atomic_load_n(&knob1Rotation, __ATOMIC_RELAXED); // retrieve required waveform
   uint8_t localKnob3 = __atomic_load_n(&knob3Rotation, __ATOMIC_RELAXED); // retrieve required volume
-
+  
   if (localKnob1==0){ // sawtooth
     Vout = currentPhase + currentPhase2 + currentPhase3;
   } else if (localKnob1==1) { // triangle
@@ -41,24 +44,6 @@ void sampleISR() {
 
   // Volume control
   Vout = Vout >> (8 - localKnob3/2);
->>>>>>> Stashed changes
-
-  // if (knob2Rotation == 0 || knob2Rotation ==2 ){ // Sawtooth wave or sinusoid 
-    int32_t Vout = phaseAcc >> 24;
-    // if (knob2Rotation ==2) { // sinusoid
-    //   Vout = sineAmplitudeArray[Vout+128];
-    // }
-  // }
-  
-  // else if (knob2Rotation == 1) { // triangle wave
-    // if (phaseAcc <= 0) {
-      // int32_t Vout = 128+2*phaseAcc;
-    // } else {
-      // int32_t Vout = 127-2*phaseAcc;
-    // } 
-  // }
-
-  Vout = Vout >> (8 - knob3Rotation/2);
   analogWrite(OUTR_PIN, Vout + 128);
 }
 
@@ -103,7 +88,6 @@ void scanKeysTask(void * pvParameters) {
 
   while(1) {
     vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
-
     uint8_t localKeyArray[8];
     uint8_t TX_Message[8];
 
@@ -169,6 +153,7 @@ void scanKeysTask(void * pvParameters) {
   }
 }
 
+
 // Thread 2
 void displayUpdateTask(void * pvParameters) {
   const TickType_t xFrequency = 100/portTICK_PERIOD_MS; // convert time in ms to scheduler ticks 
@@ -176,11 +161,7 @@ void displayUpdateTask(void * pvParameters) {
   
   while(1) {
     vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
-<<<<<<< Updated upstream
-
-=======
-
->>>>>>> Stashed changes
+    
     // Toggle LED
     digitalToggle(LED_BUILTIN);  
     
@@ -275,7 +256,7 @@ void setup() {
 
   //Initialise display
   setOutMuxBit(DRST_BIT, LOW);  //Assert display logic reset
-  delayMicroseconds(2);
+  delayMicroseconds(3);
   setOutMuxBit(DRST_BIT, HIGH);  //Release display logic reset
   u8g2.begin();
   setOutMuxBit(DEN_BIT, HIGH);  //Enable display power supply
@@ -283,7 +264,7 @@ void setup() {
   //Initialize buzzer timer
   TIM_TypeDef *Instance = TIM1; 
   HardwareTimer *sampleTimer = new HardwareTimer(Instance);
-  sampleTimer->setOverflow(22000, HERTZ_FORMAT); // function triggered by iinterrupt 22k times per second
+  sampleTimer->setOverflow(22000, HERTZ_FORMAT); // function triggered by interrupt 22k times per second
   sampleTimer->attachInterrupt(sampleISR);
   sampleTimer->resume();
 
