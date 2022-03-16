@@ -6,16 +6,44 @@
 #include <definitions.h>
 #include <helperFunctions.h>
 #include <ES_CAN.h>
+#include <waveformFunctions.h>
+
+
 
 // Interrupt 1: 
 void sampleISR() {
   static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
+  static int32_t phaseAcc2 = 0;
+  static int32_t phaseAcc3 = 0;
+
+  // static int32_t phaseAcc3 = 0;
+  // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
   phaseAcc += currentStepSize; 
+  phaseAcc2 += (int32_t)(currentStepSize*pow(2,4.0/12.0));
+  phaseAcc3 += (int32_t)(currentStepSize*pow(2,7.0/12.0));
 
-  int32_t Vout = phaseAcc >> 24;
-  // int32_t Vout = 
-  Vout = Vout >> (8 - knob3Rotation/2);
+  // phaseAcc3 += currentStep
+  int32_t Vout;
+  int32_t currentPhase = phaseAcc>>24;
+  int32_t currentPhase2 = phaseAcc2>>24;
+  int32_t currentPhase3 = phaseAcc3>>24;
+  uint8_t localKnob1 = __atomic_load_n(&knob1Rotation, __ATOMIC_RELAXED); // retrieve required waveform
+  uint8_t localKnob3 = __atomic_load_n(&knob3Rotation, __ATOMIC_RELAXED); // retrieve required volume
+  
+  if (localKnob1==0){ // sawtooth
+    Vout = currentPhase + currentPhase2 + currentPhase3;
+  } else if (localKnob1==1) { // triangle
+    if (currentPhase<= 0) { 
+      Vout = 128+2*currentPhase;
+    } else {
+      Vout = 127-2*currentPhase;
+    } 
+  } else if (localKnob1==2) { // sinusoid
+    Vout = sineAmplitudeArray[currentPhase+128];
+  }
 
+  // Volume control
+  Vout = Vout >> (8 - localKnob3/2);
   analogWrite(OUTR_PIN, Vout + 128);
 }
 
@@ -44,87 +72,87 @@ void CAN_TX_ISR(void){
 // Thread 1
 void scanKeysTask(void * pvParameters) { 
   // loop through rows of key matrix; // read columns of matrix and store in keyArray; // update currentStepSize
-  static uint16_t prevKeyStates [] = {0xf, 0xf, 0xf};
+  static uint16_t prevQuartetStates [] = {0xf, 0xf, 0xf};
   
   const TickType_t xFrequency = 20/portTICK_PERIOD_MS; // convert time in ms to scheduler ticks 
   TickType_t xLastWakeTime = xTaskGetTickCount(); // store the tick count of the last initiation
 
   uint8_t TX_Message[8] = {0};
 
+  // Initialize knobs with lower and upper limit, as well as its knob id:
   KnobDecoder knob0,knob1,knob2,knob3;
   knob0.setParams(3,7,0);  
-  knob1.setParams(3,7,1); // Octave 
-  knob2.setParams(4,7,2);
+  knob1.setParams(0,2,1); // Waveform: Sawtooth; Triangle; Sinusoid  
+  knob2.setParams(4,7,2); // Octave
   knob3.setParams(0,16,3); // Volume 
 
   while(1) {
     vTaskDelayUntil( &xLastWakeTime, xFrequency ); // blocks execution until a certain time has passed since the last time the function was completed
-    uint8_t keyIdx=12;
+    uint8_t localKeyArray[8];
+    uint8_t TX_Message[8];
 
+    // Update keyArray for each row
     xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
-    // Store pressed keys into keyArray
-    for (uint8_t i = 0; i < 5; i++) {
+    for (int i = 0; i < 8; i++) {
       setRow(i);
       delayMicroseconds(3);
       uint8_t keys = readCols(i);
       keyArray[i] = keys;
+      localKeyArray[i] = keys;
     }
+    xSemaphoreGive(keyArrayMutex);
 
+    // Update rotation values for all four knobs: 
+    // knob0.updateRotationValue(localKeyArray[4]);
+    // knob0Rotation = knob0.returnRotationValue();
 
-    knob2.updateRotationValue(keyArray[3]);
+    // __atomic_store_n(&knob0Rotation,knob0.returnRotationValue(),__ATOMIC_RELAXED);
+    // knob1.updateRotationValue(localKeyArray[4]);
+    // // knob1Rotation = knob1.returnRotationValue();
+    // __atomic_store_n(&knob1Rotation,knob1.returnRotationValue(),__ATOMIC_RELAXED);
+
+    knob2.updateRotationValue(localKeyArray[3]);
     __atomic_store_n(&knob2Rotation,knob2.returnRotationValue(),__ATOMIC_RELAXED);
+    knob3.updateRotationValue(localKeyArray[3]);
+    __atomic_store_n(&knob3Rotation,knob3.returnRotationValue(),__ATOMIC_RELAXED);
 
-
+    // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
+    // knob2Rotation = knob2.returnRotationValue();
+    // knob3Rotation = knob3.returnRotationValue();
+    // xSemaphoreGive(keyArrayMutex);
 
     // Identify keys pressed and store into volatile currentStepSize
+    uint8_t localKnob2 = __atomic_load_n(&knob2Rotation, __ATOMIC_RELAXED); // retrieve required octave
     for (uint8_t i=0; i < 3; i++) {
-      uint8_t currentKeyState = keyArray[i];
-
-      // find out the key being pressed and set keyIdx
-      // if (keysTmp == 0xf) { // if keysTmp is 15, none in this row is pressed
-      //   continue;
-      // }
-      for (uint8_t j=0; j < 4; j++){ // else find out what is pressed
-        uint8_t mask = 1<<(3-j);
-        bool isPressed = currentKeyState & mask; 
-        if (!isPressed) {
-          keyIdx = i*4 + j;
-        }
-      }
-
-      // check if there is any difference in state
-      if ((currentKeyState^prevKeyStates[i])==0){
+      uint8_t currentQuartetState = localKeyArray[i];
+      
+      // for each quartet, check if current key state is same as previous key state 
+      if ((currentQuartetState^prevQuartetStates[i])==0){
         continue;
       } else {
-        uint8_t prevKeyState = prevKeyStates[i];
-        uint8_t changedBits = currentKeyState^prevKeyState;
-        for (uint8_t j=0; j < 4; j++){ // do bitwise 
+        uint8_t prevQuartetState = prevQuartetStates[i]; // recall previous quartet state
+        uint8_t changedBits = currentQuartetState^prevQuartetState; // identify changed bits in the quartet
+        for (uint8_t j=0; j < 4; j++){ // bitwise comparison for each bit in the quartet
           uint8_t mask = 1<<(3-j);
-          if (mask & changedBits) {
+          if (mask & changedBits) { // this bit has changed
             // this bit has a change
-            TX_Message[1] = knob2.returnRotationValue();
-            TX_Message[2] = i*4 + j;
-            if ((mask & currentKeyState)>>(mask & prevKeyState)){
+            TX_Message[1] = localKnob2; // octave
+            TX_Message[2] = i*4 + j; // key
+            if ((mask & currentQuartetState)>(mask & prevQuartetState)){ // 1 is released 0 is pressed
               // key released
               TX_Message[0] = 'R';
-              
             } else {
               TX_Message[0] = 'P';
             }
-            // CAN_TX(0x123,TX_Message);
-            xQueueSend( msgOutQ, TX_Message, portMAX_DELAY );
           }
         }
       }
-      prevKeyStates[i] = currentKeyState;
+      prevQuartetStates[i] = currentQuartetState; // update quartet
     }
-    // __atomic_store_n(&currentStepSize,stepSizes[keyIdx],__ATOMIC_RELAXED);
-
-    knob3.updateRotationValue(keyArray[3]);
-    __atomic_store_n(&knob3Rotation,knob3.returnRotationValue(),__ATOMIC_RELAXED);
-    xSemaphoreGive(keyArrayMutex);
+    xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
   }
 }
+
 
 // Thread 2
 void displayUpdateTask(void * pvParameters) {
@@ -163,7 +191,7 @@ void displayUpdateTask(void * pvParameters) {
     xSemaphoreGive(keyArrayMutex);
 
     u8g2.setCursor(2,30);
-    u8g2.print(knob2Rotation);
+    u8g2.print(knob1Rotation);
 
     u8g2.setCursor(66,30);
     u8g2.print((char) RX_Message_local[0]);
@@ -195,7 +223,6 @@ void decodeTask(void * pvParameters) {
     } else { // if index 0 is P
       localStepSize = stepSizes[RX_Message[2]];
       __atomic_store_n(&currentStepSize,(localStepSize << (RX_Message[1]-4)),__ATOMIC_RELAXED);
-
     }
   }
 }
