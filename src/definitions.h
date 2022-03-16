@@ -9,11 +9,11 @@
 
 //Volatiles
   volatile int32_t currentStepSize; 
-  volatile uint8_t keyArray[7];
-  volatile int8_t knob0Rotation;
-  volatile int8_t knob1Rotation;
-  volatile uint8_t knob2Rotation;
-  volatile uint8_t knob3Rotation;
+  volatile uint8_t keyArray[8];
+  volatile uint8_t knob0Rotation;
+  volatile uint8_t knob1Rotation=0; // 0: sawtooth; 1: triangle; 2: sinusoid
+  volatile uint8_t knob2Rotation; // octave
+  volatile uint8_t knob3Rotation; // volume
   volatile uint8_t testPointCheck;
 
   uint8_t RX_Message[8] = {0}; // store outgoing messages
