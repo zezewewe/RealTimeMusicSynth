@@ -8,38 +8,87 @@
 #include <ES_CAN.h>
 #include <waveformFunctions.h>
 
+// #define monophony 1
+#define chords 1
+// #define polyphony 1 // not implemented
 
 
 // Interrupt 1: 
 void sampleISR() {
-  static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
-  static int32_t phaseAcc2 = 0;
-  static int32_t phaseAcc3 = 0;
-
-  // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
-  phaseAcc += currentStepSize; 
-  phaseAcc2 += (int32_t)(currentStepSize*pow(2,4.0/12.0));
-  phaseAcc3 += (int32_t)(currentStepSize*pow(2,7.0/12.0));
-
-  // phaseAcc3 += currentStep
+  // static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
   int32_t Vout;
-  int32_t currentPhase = phaseAcc>>24;
-  int32_t currentPhase2 = phaseAcc2>>24;
-  int32_t currentPhase3 = phaseAcc3>>24;
   uint8_t localKnob1 = __atomic_load_n(&knob1Rotation, __ATOMIC_RELAXED); // retrieve required waveform
   uint8_t localKnob3 = __atomic_load_n(&knob3Rotation, __ATOMIC_RELAXED); // retrieve required volume
+
+
+  // init phaseAcc and currentPhase tables
+  #if monophony 
+    static int32_t phaseAccChordTable[1];
+    static int32_t currentPhaseChordTable[1];
+
+    phaseAccChordTable[0] += currentStepSize; 
+    currentPhaseChordTable[0] = phaseAccChordTable[0]>>24;
+
+    if (localKnob1==0){ // sawtooth
+      Vout = currentPhaseChordTable[0];
+    } else if (localKnob1==1) { // triangle
+      if (currentPhaseChordTable[0]<= 0) { 
+        Vout = 128+2*currentPhaseChordTable[0];
+      } else {
+        Vout = 127-2*currentPhaseChordTable[0];
+      } 
+    } else if (localKnob1==2) { // sinusoid
+      Vout = sineAmplitudeArray[currentPhaseChordTable[0]+128];
+    }
+
+  #elif chords
+    static int32_t phaseAccChordTable[3];
+    static int32_t currentPhaseChordTable[3];
+
+    phaseAccChordTable[0] += currentStepSize; 
+    currentPhaseChordTable[0] = phaseAccChordTable[0]>>24;
+    for (int i=1;i<3;i++){
+      phaseAccChordTable[i] += (int32_t)(currentStepSize*pow(2,(i*3.0+1.0)/12.0));
+      currentPhaseChordTable[i] = (phaseAccChordTable[i])>>24;
+    }
+    
+    if (localKnob1==0){ // sawtooth
+      Vout = 0;
+      for (int i=0;i<3;i++){
+        Vout += currentPhaseChordTable[i];
+      }
+    } else if (localKnob1==1) { // triangle
+      for (int i=0;i<3;i++){
+        if (currentPhaseChordTable[i]<= 0) { 
+          Vout += 128+2*currentPhaseChordTable[i];
+        } else {
+          Vout += 127-2*currentPhaseChordTable[i];
+        } 
+      }
+    } else if (localKnob1==2) { // sinusoid
+      for (int i=0;i<3;i++){
+        Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
+      }
+    }
+  #else
+    static int32_t phaseAccChordTable[5];
+    static int32_t currentPhaseChordTable[5]; 
+  #endif
+
+  // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
+
   
-  if (localKnob1==0){ // sawtooth
-    Vout = currentPhase + currentPhase2 + currentPhase3;
-  } else if (localKnob1==1) { // triangle
-    if (currentPhase<= 0) { 
-      Vout = 128+2*currentPhase;
-    } else {
-      Vout = 127-2*currentPhase;
-    } 
-  } else if (localKnob1==2) { // sinusoid
-    Vout = sineAmplitudeArray[currentPhase+128];
-  }
+  // if (localKnob1==0){ // sawtooth
+  //   Vout = currentPhase + currentPhase2 + currentPhase3;
+  // } else if (localKnob1==1) { // triangle
+  //   if (currentPhase<= 0) { 
+  //     Vout = 128+2*currentPhase;
+  //   } else {
+  //     Vout = 127-2*currentPhase;
+  //   } 
+  // } else if (localKnob1==2) { // sinusoid
+  //   Vout = sineAmplitudeArray[currentPhase+128] + sineAmplitudeArray[currentPhase2+128] + sineAmplitudeArray[currentPhase3+128];
+  // }
 
   // Volume control
   Vout = Vout >> (8 - localKnob3/2);
