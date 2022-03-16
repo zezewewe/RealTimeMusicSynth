@@ -14,6 +14,34 @@
 void sampleISR() {
   static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
   phaseAcc += currentStepSize; 
+<<<<<<< Updated upstream
+=======
+  phaseAcc2 += (int32_t)(currentStepSize*pow(2,4.0/12.0));
+  phaseAcc3 += (int32_t)(currentStepSize*pow(2,7.0/12.0));
+
+  // phaseAcc3 += currentStep
+  int32_t Vout;
+  int32_t currentPhase = phaseAcc>>24;
+  int32_t currentPhase2 = phaseAcc2>>24;
+  int32_t currentPhase3 = phaseAcc3>>24;
+  uint8_t localKnob1 = __atomic_load_n(&knob1Rotation, __ATOMIC_RELAXED); // retrieve required waveform
+  uint8_t localKnob3 = __atomic_load_n(&knob3Rotation, __ATOMIC_RELAXED); // retrieve required volume
+
+  if (localKnob1==0){ // sawtooth
+    Vout = currentPhase + currentPhase2 + currentPhase3;
+  } else if (localKnob1==1) { // triangle
+    if (currentPhase<= 0) { 
+      Vout = 128+2*currentPhase;
+    } else {
+      Vout = 127-2*currentPhase;
+    } 
+  } else if (localKnob1==2) { // sinusoid
+    Vout = sineAmplitudeArray[currentPhase+128];
+  }
+
+  // Volume control
+  Vout = Vout >> (8 - localKnob3/2);
+>>>>>>> Stashed changes
 
   // if (knob2Rotation == 0 || knob2Rotation ==2 ){ // Sawtooth wave or sinusoid 
     int32_t Vout = phaseAcc >> 24;
@@ -148,7 +176,11 @@ void displayUpdateTask(void * pvParameters) {
   
   while(1) {
     vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
+<<<<<<< Updated upstream
 
+=======
+
+>>>>>>> Stashed changes
     // Toggle LED
     digitalToggle(LED_BUILTIN);  
     
