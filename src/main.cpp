@@ -6,11 +6,19 @@
 #include <definitions.h>
 #include <helperFunctions.h>
 #include <ES_CAN.h>
+#include <waveformFunctions.h>
+
+
 
 // Interrupt 1
 void sampleISR() {
   static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
   phaseAcc += currentStepSize; 
+
+  // if (knob2Rotation == 0){
+    int32_t Vout = phaseAcc >> 24;
+    Vout = Vout >> (8 - knob3Rotation/2);
+  // }
 
   int32_t Vout = phaseAcc >> 24;
   Vout = Vout >> (8 - knob3Rotation/2);
@@ -52,8 +60,8 @@ void scanKeysTask(void * pvParameters) {
 
   KnobDecoder knob0,knob1,knob2,knob3;
   knob0.setParams(3,7,0);  
-  knob1.setParams(3,7,1); // Octave 
-  knob2.setParams(4,7,2);
+  knob1.setParams(0,2,1); // Waveform: Sawtooth; Triangle; Sinusoid  
+  knob2.setParams(4,7,2); // Octave
   knob3.setParams(0,16,3); // Volume 
 
   while(1) {
@@ -69,6 +77,8 @@ void scanKeysTask(void * pvParameters) {
       keyArray[i] = keys;
     }
 
+    knob1.updateRotationValue(keyArray[4]);
+    __atomic_store_n(&knob1Rotation,knob1.returnRotationValue(),__ATOMIC_RELAXED);
 
     knob2.updateRotationValue(keyArray[3]);
     __atomic_store_n(&knob2Rotation,knob2.returnRotationValue(),__ATOMIC_RELAXED);
