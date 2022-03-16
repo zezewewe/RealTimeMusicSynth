@@ -16,7 +16,6 @@ void sampleISR() {
   static int32_t phaseAcc2 = 0;
   static int32_t phaseAcc3 = 0;
 
-  // static int32_t phaseAcc3 = 0;
   // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
   phaseAcc += currentStepSize; 
   phaseAcc2 += (int32_t)(currentStepSize*pow(2,4.0/12.0));
