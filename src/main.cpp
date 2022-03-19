@@ -226,7 +226,7 @@ void displayUpdateTask(void * pvParameters) {
     */
     
     xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
-    u8g2.drawStr(2,20,"Note:");
+    u8g2.drawStr(2,30,"Note:");
     uint8_t keyPressed = 12; // if no key is pressed, nothing will be displayed
     for (uint8_t i=0; i < 3; i++){
       for (uint8_t j=0; j < 4; j++){ 
@@ -236,11 +236,14 @@ void displayUpdateTask(void * pvParameters) {
         }
       }
     }
-    u8g2.setCursor(42,20);
+    u8g2.setCursor(42,30);
     u8g2.print(keyNames[keyPressed]);
-    u8g2.drawStr(75,20,"Octave:");
-    u8g2.setCursor(120,20);
+    u8g2.drawStr(75,30,"Octave:");
+    u8g2.setCursor(120,30);
     u8g2.print(knob2Rotation);
+    u8g2.drawStr(75,20,"Volume:");
+    u8g2.setCursor(120,20);
+    u8g2.print(knob3Rotation);
     xSemaphoreGive(keyArrayMutex);
 
     
