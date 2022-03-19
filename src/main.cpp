@@ -218,10 +218,32 @@ void displayUpdateTask(void * pvParameters) {
     u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
     u8g2.drawStr(2,10,"PIANO!");  // write something to the internal memory
 
+    /*
     u8g2.setCursor(2,20);
     xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
     u8g2.print(keyArray[0]<<8|keyArray[1]<<4|keyArray[2]<<0, BIN);
     xSemaphoreGive(keyArrayMutex);
+    */
+    
+    xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
+    u8g2.drawStr(2,20,"Note:");
+    uint8_t keyPressed = 13; // if no key is pressed, nothing will be displayed
+    for (uint8_t i=0; i < 3; i++){
+      for (uint8_t j=0; j < 4; j++){ 
+        uint8_t mask = 1<<(3-j);
+        if (!keyArray[i] & mask){ // checking for key pressed
+          keyPressed = i*4+j;
+        }
+      }
+    }
+    u8g2.setCursor(15,20);
+    u8g2.print(keyNames[keyPressed]);
+    u8g2.drawStr(30,20,"Octave:");
+    u8g2.setCursor(42,20);
+    u8g2.print(knob2Rotation);
+    xSemaphoreGive(keyArrayMutex);
+
+
 
     u8g2.setCursor(2,30);
     u8g2.print(knob0Rotation);
