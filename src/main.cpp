@@ -133,7 +133,7 @@ void scanKeysTask(void * pvParameters) {
   knob1.setParams(0,2,1); // Waveform: Sawtooth; Triangle; Sinusoid  
   knob2.setParams(2,8,2); // Octave
   knob3.setParams(0,16,3); // Volume 
-
+  
   while(1) {
     vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
     uint8_t localKeyArray[8];
@@ -239,10 +239,10 @@ void displayUpdateTask(void * pvParameters) {
     u8g2.setCursor(42,30);
     u8g2.print(keyNames[keyPressed]);
     u8g2.drawStr(65,30,"Octave:");
-    u8g2.setCursor(120,30);
+    u8g2.setCursor(115,30);
     u8g2.print(knob2Rotation);
     u8g2.drawStr(65,20,"Volume:");
-    u8g2.setCursor(120,20);
+    u8g2.setCursor(115,20);
     u8g2.print(knob3Rotation);
     xSemaphoreGive(keyArrayMutex);
 
