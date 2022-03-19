@@ -238,24 +238,13 @@ void displayUpdateTask(void * pvParameters) {
     }
     u8g2.setCursor(42,30);
     u8g2.print(keyNames[keyPressed]);
-    u8g2.drawStr(75,30,"Octave:");
+    u8g2.drawStr(65,30,"Octave:");
     u8g2.setCursor(120,30);
     u8g2.print(knob2Rotation);
-    u8g2.drawStr(75,20,"Volume:");
+    u8g2.drawStr(65,20,"Volume:");
     u8g2.setCursor(120,20);
     u8g2.print(knob3Rotation);
     xSemaphoreGive(keyArrayMutex);
-
-    
-
-    // u8g2.setCursor(2,30);
-    // u8g2.print(knob0Rotation);
-    // u8g2.setCursor(8,30);
-    // u8g2.print(knob1Rotation);
-    // u8g2.setCursor(14,30);
-    // u8g2.print(knob2Rotation);
-    // u8g2.setCursor(20,30);
-    // u8g2.print(knob3Rotation);
 
     uint8_t RX_Message_local[8];
     xSemaphoreTake(RX_MessageMutex, portMAX_DELAY);
@@ -263,11 +252,6 @@ void displayUpdateTask(void * pvParameters) {
       RX_Message_local[i]=RX_Message[i];
     }
     xSemaphoreGive(RX_MessageMutex);
-
-    u8g2.setCursor(66,30);
-    u8g2.print((char) RX_Message_local[0]);
-    u8g2.print(RX_Message_local[1]);
-    u8g2.print(RX_Message_local[2]);
 
     u8g2.sendBuffer();          // transfer internal memory to the display
   }
