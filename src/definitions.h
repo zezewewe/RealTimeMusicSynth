@@ -1,3 +1,5 @@
+  char output = '0';
+
 //Constants
   const uint32_t interval = 100; //Display update interval
   const double fs = 22e3;
@@ -15,7 +17,12 @@
   volatile uint8_t knob3Rotation; // volume
   volatile uint8_t testPointCheck;
 
-  uint8_t RX_Message[8] = {0}; // store outgoing messages
+  volatile uint8_t RX_Message[8] = {0}; // store outgoing messages
+  
+  volatile uint8_t rxtxKeyArray[24] = {};
+  volatile uint8_t rxtxOctaveArray[24] = {};
+  volatile char rxtxPressArray[24] = {};
+  volatile uint8_t rxtxKeyArray_idx = 0; // to keep track of index of last element. Everytime an element is added in, the idx will increment
 
 //Queue handler
   QueueHandle_t msgInQ;

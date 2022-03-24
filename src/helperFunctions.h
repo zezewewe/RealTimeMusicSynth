@@ -94,3 +94,31 @@ class KnobDecoder {
       // return currentKnobState;
     };
 };
+
+void addToKeyArray(char press, uint8_t octave, uint8_t key)
+{
+  rxtxOctaveArray[rxtxKeyArray_idx] = octave;
+  rxtxKeyArray[rxtxKeyArray_idx] = key;
+  rxtxPressArray[rxtxKeyArray_idx] = press;
+  rxtxKeyArray_idx += 1;
+}
+
+//Pop the press and return step
+char popFromPressArray()
+{
+  return rxtxPressArray[rxtxKeyArray_idx];
+}
+
+//Pop the octave and return step
+uint8_t popFromOctaveArray()
+{
+  return rxtxOctaveArray[rxtxKeyArray_idx];
+}
+
+//Pop the key and return step AND decrement
+uint8_t popFromKeyArray()
+{
+  uint8_t key = rxtxKeyArray[rxtxKeyArray_idx];
+  rxtxKeyArray_idx -= 1;
+  return key;
+}

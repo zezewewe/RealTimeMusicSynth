@@ -8,10 +8,11 @@
 #include <ES_CAN.h>
 #include <waveformFunctions.h>
 
-// #define monophony 1
-#define chords 1
+#define monophony 1
+//#define chords 1
 // #define polyphony 1 // not implemented
 
+int rx_or_tx = 0; // 0 for loopback, 1 for rx, 2 for tx
 
 // Interrupt 1: 
 void sampleISR() {
@@ -191,13 +192,22 @@ void scanKeysTask(void * pvParameters) {
               TX_Message[0] = 'R';
             } else {
               TX_Message[0] = 'P';
+              
             }
           }
         }
       }
       prevQuartetStates[i] = currentQuartetState; // update quartet
     }
-    xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+    if (rx_or_tx == 2 || rx_or_tx == 0) //If loopback or tx
+    {
+      xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+    }
+
+    else if (rx_or_tx == 1) // If rx
+    {
+      addToKeyArray(TX_Message[0], TX_Message[1], TX_Message[2]);
+    }
   }
 }
 
@@ -243,6 +253,7 @@ void displayUpdateTask(void * pvParameters) {
     u8g2.print((char) RX_Message_local[0]);
     u8g2.print(RX_Message_local[1]);
     u8g2.print(RX_Message_local[2]);
+    u8g2.print((char) output);
 
     u8g2.sendBuffer();          // transfer internal memory to the display
   }
@@ -261,12 +272,22 @@ void decodeTask(void * pvParameters) {
     }
     xSemaphoreGive(RX_MessageMutex);
 
-    if (RX_Message_local[0]=='R') {
+    addToKeyArray(RX_Message[0], RX_Message[1], RX_Message[2]);
+
+    if(rxtxKeyArray_idx>0)
+    {
+      output = popFromPressArray(); //BUG something wrong with popping the char. Output does not return char
+      uint8_t octave_local = popFromOctaveArray();
+      uint8_t key_local = popFromKeyArray(); //decrements idx as well
+      
+      if (output=='R') {
       __atomic_store_n(&currentStepSize,0,__ATOMIC_RELAXED);
-    } else if (RX_Message_local[0]=='P'){
-      int32_t localStepSize = stepSizes[RX_Message_local[2]]; // CHECK IF NEED ATOMIC LOAD
-      localStepSize = localStepSize*pow(2,(RX_Message_local[1]-4));
-      __atomic_store_n(&currentStepSize,localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
+      }
+      else if (output=='P'){
+        int32_t localStepSize = stepSizes[key_local]; // CHECK IF NEED ATOMIC LOAD
+        localStepSize = localStepSize*pow(2,(octave_local-4));
+        __atomic_store_n(&currentStepSize,localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
+      }
     }
   }
 }
@@ -276,7 +297,7 @@ void setup() {
   // put your setup code here, to run once:
 
   // Initialize the CAN bus
-  CAN_Init(true); // receive and ack own messages
+  CAN_Init(~rx_or_tx); // true for loopback. rx_or_tx = 0 is for loopback, 1 is rx, 2 is tx
   setCANFilter(0x123,0x7ff); //only messages with ID 0x123 will be received; every bit of the ID must match the filter for msg to be accepted
   CAN_RegisterRX_ISR(CAN_RX_ISR); // call ISR whenever CAN msg received -> pass pointer to relevant library function
   CAN_RegisterTX_ISR(CAN_TX_ISR); 
