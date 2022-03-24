@@ -1,11 +1,17 @@
 # Table of contents
-1. [Introduction](#introduction)
-2. [Some paragraph](#paragraph1)
+1. [Breakdown of tasks](#breakdown)
+    1. [Explanation] (#explanation)
+    2. []
+    2. [Min initiation interval and max time] (#time_analysis)
+2. [Critical Instant Analysis](#paragraph1)
     1. [Sub paragraph](#subparagraph1)
-3. [Another paragraph](#paragraph2)
+3. [Total CPU utilisation](#paragraph2)
 
-## This is the introduction <a name="introduction"></a>
+## This is section 1 <a name="breakdown"></a>
 Some introduction text, formatted in heading 2 style
+
+### Sub paragraph <a name="explanation"></a>
+This is a sub paragraph, formatted in heading 3 style
 
 ## Some paragraph <a name="paragraph1"></a>
 The first paragraph text
