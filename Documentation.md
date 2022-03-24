@@ -1,6 +1,6 @@
 # Table of contents
 1. [Breakdown of tasks](#breakdown)
-    1. [Explanation] (#explanation)
+    1. [Explanation](#explanation)
 2. [Min initiation interval](#time_analysis)
 3. [Critical Instant Analysis](#paragraph1)
     1. [Sub paragraph](#subparagraph1)
@@ -8,8 +8,8 @@
 5. [Safety Features](#safety_features)
 6. [Analysis of inter-task blocking dependencies](#intertask_blocking)
 
-## This is section 1 <a name="breakdown"></a>
-Some introduction text, formatted in heading 2 style
+## Breakdown of tasks <a name="breakdown"></a>
+
 
 ### Explanation <a name="explanation"></a>
 This is a sub paragraph, formatted in heading 3 style
