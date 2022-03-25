@@ -142,7 +142,7 @@ void scanKeysTask(void * pvParameters) {
   // Initialize knobs with lower and upper limit, as well as its knob id:
   KnobDecoder knob2,knob3;
   knob2.setParams(0,2,2); // Waveform: Sawtooth; Triangle; Sinusoid 
-  knob3.setParams(5,16,3); // Volume 
+  knob3.setParams(0,16,3); // Volume 
 
   while(1) {
     vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
