@@ -261,8 +261,9 @@ void displayUpdateTask(void * pvParameters) {
     //Update display
     u8g2.clearBuffer();         // clear the internal memory
     u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
-    u8g2.drawStr(2,10,"PIANO!");  // write something to the internal memory
+    u8g2.drawStr(2,10,"GOEL Music Synth");  // write something to the internal memory
 
+    /*
     u8g2.setCursor(2,20);
     // u8g2.print(globalRxTxMultipliedArray[0]);
     // u8g2.print(globalRxTxMultipliedArray[1]);
@@ -272,15 +273,28 @@ void displayUpdateTask(void * pvParameters) {
     xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
     u8g2.print(keyArray[0]<<8|keyArray[1]<<4|keyArray[2]<<0, BIN);
     xSemaphoreGive(keyArrayMutex);
-
-    u8g2.setCursor(2,30);
-    u8g2.print(knob0Rotation);
-    u8g2.setCursor(8,30);
-    u8g2.print(knob1Rotation);
-    u8g2.setCursor(14,30);
+    */
+    
+    xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
+    u8g2.drawStr(2,30,"Note:");
+    uint8_t keyPressed = 12; // if no key is pressed, nothing will be displayed
+    for (uint8_t i=0; i < 3; i++){
+      for (uint8_t j=0; j < 4; j++){ 
+        uint8_t mask = 1<<(3-j);
+        if (~keyArray[i] & mask){ // checking for key pressed
+          keyPressed = i*4+j;
+        }
+      }
+    }
+    u8g2.setCursor(42,30);
+    u8g2.print(keyNames[keyPressed]);
+    u8g2.drawStr(65,30,"Octave:");
+    u8g2.setCursor(115,30);
     u8g2.print(knob2Rotation);
-    u8g2.setCursor(20,30);
+    u8g2.drawStr(65,20,"Volume:");
+    u8g2.setCursor(115,20);
     u8g2.print(knob3Rotation);
+    xSemaphoreGive(keyArrayMutex);
 
     uint8_t RX_Message_local[8];
     xSemaphoreTake(RX_MessageMutex, portMAX_DELAY);
@@ -288,19 +302,6 @@ void displayUpdateTask(void * pvParameters) {
       RX_Message_local[i]=RX_Message[i];
     }
     xSemaphoreGive(RX_MessageMutex);
-
-    u8g2.setCursor(66,30);
-    u8g2.print((char) output);
-    // u8g2.print(testPointCheck);
-    // u8g2.print((char) RX_Message_local[0]);
-    // u8g2.print(globalRxTxCounter);
-    u8g2.print(testPointCheck);
-    // u8g2.print(testPointCheck1);
-    // u8g2.print(testPointCheck2);
-    // u8g2.print(testPointCheck3);
-    // u8g2.print(testPointCheck4);
-
-
     u8g2.sendBuffer();          // transfer internal memory to the display
   }
 }
