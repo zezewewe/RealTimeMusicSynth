@@ -178,12 +178,12 @@ void scanKeysTask() {
 
     // Identify keys pressed and store into volatile currentStepSize
     uint8_t localKnob2 = __atomic_load_n(&knob2Rotation, __ATOMIC_RELAXED); // retrieve required octave
-    for (uint8_t i=0; i < 3; i++) { // iterate through each row of keys
+    for (uint8_t i=0; i < 1; i++) { // iterate through each row of keys
       uint8_t currentQuartetState = localKeyArray[i];
       
       // Confirm that all keys are "released" and send a message for each of the 12 keys
       uint8_t prevQuartetState = prevQuartetStates[i];
-      for (uint8_t j=0; j < 4; j++){ // iterate through each key
+      for (uint8_t j=0; j < 1; j++){ // iterate through each key
         uint8_t mask = 1 <<(3-j);
         if (rx_or_tx == 1) {
               TX_Message[1] = defaultRxOctave; // Receiver has octave 4
@@ -195,7 +195,9 @@ void scanKeysTask() {
               TX_Message[0] = 'R';
         }
       }
-      xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+      xQueueSend(msgInQ, TX_Message, portMAX_DELAY);
+      // xQueueSendFromISR(msgInQ,TX_Message,NULL);
+
       // // for each quartet, check if current key state is same as previous key state 
       // if ((currentQuartetState^prevQuartetStates[i])==0){
       //   continue;
@@ -544,11 +546,11 @@ void setup() {
 
   // displayUpdateTask(); // run task once 
   
-  // decodeTask(); // run task once 
+  decodeTask(); // run task once 
   
   // CAN_TX_Task(); // run task once
 
-  generateCurrentStepArrayTask(); 
+  // generateCurrentStepArrayTask(); 
 
   int localtimediff = micros()-startTime; // Calculate execution time 
   __atomic_store_n(&globaltimediff,localtimediff,__ATOMIC_RELAXED); // Update global variable 
