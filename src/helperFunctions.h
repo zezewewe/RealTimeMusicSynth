@@ -16,6 +16,7 @@ uint8_t readCols(uint8_t rowIdx) {
   return C0<<3|C1<<2|C2<<1|C3<<0; // concatenate four integers together
 }
 
+
 class KnobDecoder {
     const uint8_t C0_mask=8; // Column 0 mask = 1000
     const uint8_t C1_mask=4; // Column 1 mask = 0100

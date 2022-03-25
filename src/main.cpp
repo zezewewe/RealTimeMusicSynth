@@ -6,11 +6,8 @@
 #include <definitions.h>
 #include <helperFunctions.h>
 #include <ES_CAN.h>
-#include <waveformFunctions.h>
 
-#define polyphony 1 // default setting 
-// #define monophony 1
-// #define chords 1
+
 
 void sampleISR() {
   /* 
@@ -20,8 +17,8 @@ void sampleISR() {
   int32_t Vout;
   uint8_t localKnob2 = __atomic_load_n(&knob2Rotation, __ATOMIC_RELAXED); // retrieve required waveform
   uint8_t localKnob3 = __atomic_load_n(&knob3Rotation, __ATOMIC_RELAXED); // retrieve required volume
-
-  #if polyphony 
+  
+  if (playingMode==0){ //polyphony
     static int32_t localcurrentStepSizeArr[maxNotesStored];
     static int32_t phaseAccChordTable[maxNotesStored];
     static int32_t currentPhaseChordTable[maxNotesStored]; 
@@ -53,7 +50,7 @@ void sampleISR() {
         Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
       }
     }
-    #elif monophony // Single line played (deprecated with the new polyphony update)
+  } else if (playingMode==1) { //monophony
     static int32_t phaseAccChordTable[1];
     static int32_t currentPhaseChordTable[1];
 
@@ -71,9 +68,8 @@ void sampleISR() {
     } else if (localKnob2==2) { // sinusoid
       Vout = sineAmplitudeArray[currentPhaseChordTable[0]+128];
     }
-
-  #elif chords // Play a note and a chord is played (deprecated with the new polyphony update)
-    static int32_t phaseAccChordTable[3];
+  } else if (playingMode==2) { //chords
+        static int32_t phaseAccChordTable[3];
     static int32_t currentPhaseChordTable[3];
 
     phaseAccChordTable[0] += currentStepSize; 
@@ -101,8 +97,7 @@ void sampleISR() {
         Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
       }
     }
-
-  #endif
+  }
 
   // Volume scaling to -128 to 127 range
   Vout = Vout >> (8 - localKnob3/2);
@@ -147,7 +142,7 @@ void scanKeysTask(void * pvParameters) {
   // Initialize knobs with lower and upper limit, as well as its knob id:
   KnobDecoder knob2,knob3;
   knob2.setParams(0,2,2); // Waveform: Sawtooth; Triangle; Sinusoid 
-  knob3.setParams(10,16,3); // Volume 
+  knob3.setParams(5,16,3); // Volume 
 
   while(1) {
     vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
@@ -184,8 +179,6 @@ void scanKeysTask(void * pvParameters) {
         for (uint8_t j=0; j < 4; j++){ // bitwise comparison for each bit in the quartet
           uint8_t mask = 1<<(3-j);
           if (mask & changedBits) { // this bit has changed
-            // this bit has a change
-            // TX_Message[1] = localKnob2; // octave
             if (rx_or_tx == 1) {
               TX_Message[1] = defaultRxOctave; // Receiver has octave 4
             } else {
@@ -349,7 +342,6 @@ void decodeTask(void * pvParameters) {
       for (int i=0;i<maxNotesStored;i++){ 
         if (localRxTxMultipliedArray[i] == multipliedID) {
           localRxTxMultipliedArray[i]=0;
-          __atomic_store_n(&testPointCheck,localRxTxMultipliedArray[i],__ATOMIC_RELAXED);
           break;
         }
       } 
