@@ -14,7 +14,7 @@ Documentation for this Repository is split into two parts. This readme file expl
 - Three playing modes are available, and polyphony is the default setting. In polyphony, up to a user-defined number of notes can be played at any time (the default is 10). In monophony, only 1 note can be played at a time. In chords, the playing of one note will result in that major chord being sound. The chords mode was meant as an exploration of adding waveforms together, and acts as a basso continuo. 
 
 ### Demo Video
-The following video demonstrates polyphony across two keyboards, the left of which is RX, and the right RX. Sound output comes out from the left speaker. Notes are played for all three waveforms, Sawtooth, Triangle and Sinusoidal. 
+The following video demonstrates polyphony across two keyboards, the left of which is RX, and the right TX. Sound output comes out from the left speaker. Notes are played for all three waveforms, Sawtooth, Triangle and Sinusoidal. 
 
 [![GoelSynth](https://img.youtube.com/vi/0E2B9Qj-xCs/0.jpg)](https://youtu.be/0E2B9Qj-xCs "GoelSynth Demo")
 
@@ -61,7 +61,7 @@ This function selects the desired row rowIdx of the switch matrix by writing the
 This function reads the inputs from the four columns of the switch matrix and returns the four bits concatenated together as a single byte.
 
 
-### Class KnobDecoder
+#### Class KnobDecoder
 
 Due to the numerous knobs available, a class was created with the following methods:
 - setParams(uint8_t lowerLim, uint8_t upperLim, uint8_t knobIdx) allows for easy initialization of the upper and lower limits of each knob. It also takes in the knobIdx which is essential to identifying the number of bits to shift right by for state comparison.
