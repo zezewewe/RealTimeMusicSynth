@@ -70,10 +70,24 @@ We consider the latency of the lowest-priority task (highest initiation interval
 
 
 # Total CPU utilisation <a name="CPU_utilisation"></a>
-insert text here 
+Utilisation refers to the portion of time that the CPU is busy. It refers to a computer's usage of processing resources, or the amount of work handled by a CPU. 
+
+Based on the assumptions of rate-monotonic scheduling, if we were to then allocate the shortest initiation interval as the highest priority, we will obtain the most optimal CPU utilisation. 
 
 # Safe Access and Synchronisation <a name="safety_features"></a>
-insert text here 
+Synchronisation is the technique to overcome the problem of concurrent access to shared data which can result in data inconsistency. Concurrent data access is dangerous as it may result in the interrupt or scheduler swapping threads. As a result, the code will not function as expected. 
+
+In order to have safe access and synchronisation, our code utilises mutexes, semaphores, queues, atomic memory access which are designed to support concurrent systems
+
+### Identification of shared data structures
+#### Shared Variables
+- knob2Rotation and knob3Rotation values are modified in scanKeysTask thread (by means of an update of the class object), and accessed in the sampleISR interrupt ond displayUpdateTask thread. These global variables are accessed and stored using atomic load and atomic store respectively. 
+- globalRxTxCounter is used in the polyphony stage to track the total number of notes that are are being played, and are incremented and decremented in decodeTask thread. this is for future work where additional threads may likely have to access this important shared counter.
+- as part of polyphony implementation, the currentStepSizeArr[] replaces the currentStepSize variable. these elements within the currentStepSizeArr[] are updated in the generateCurrentStepArrayTask thread and accessed in the sampleISR interrupt. The updating and loading is done through use of atomic store.
+
+#### Shared Arrays
+- keyArray is updated in the ScanKeysTask and used in the DisplayUpdateTask threads, and a mutex is used to protect this array. 
+- Global arrays such as globalRxTxMultipliedArray are updated by decodeTask thread and accessed in generateCurrentStepArrayTask thread. Similarly, a mutex is used to protect it.
 
 # Analysis of inter-task blocking dependencies <a name="intertask_blocking"></a>
 insert text here 
