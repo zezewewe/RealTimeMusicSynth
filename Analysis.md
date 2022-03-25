@@ -32,7 +32,7 @@ A critical instant for a task is defined to be an instant at which a request for
 
 We consider the latency of the lowest-priority task (highest initiation interval, tn) and compare that to tn. For the schedule to work, the latency has to be less than tn. 
 
-How we adapted the code
+-- How we adapted the code --
 
 1. scanKeysTask
 - Worst case occurs when all keys are pressed 
