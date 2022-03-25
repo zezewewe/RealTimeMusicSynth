@@ -249,8 +249,8 @@ void displayUpdateTask(void * pvParameters) {
     u8g2.print((char) output);
     // u8g2.print(testPointCheck);
     u8g2.print((char) RX_Message_local[0]);
-    u8g2.print(RX_Message_local[1]);
-    u8g2.print(RX_Message_local[2]);
+    u8g2.print(globalRxTxCounter);
+    // u8g2.print(testPointCheck);
 
     u8g2.sendBuffer();          // transfer internal memory to the display
   }
@@ -260,11 +260,11 @@ void displayUpdateTask(void * pvParameters) {
 void decodeTask(void * pvParameters) { 
   while(1) {
     uint8_t RX_Message_local[8];
-    uint8_t localRxTxIdx;
+    uint8_t localRxTxIdx, localRxTxCounter;
     char localRxTxPressArray[maxNotesStored] = {};
     uint8_t localRxTxOctaveArray[maxNotesStored] = {};
-    uint8_t localRxTxKeyArray[maxNotesStored] = {};    
-
+    uint8_t localRxTxKeyArray[maxNotesStored] = {};
+    uint8_t localRxTxMultipliedArray[maxNotesStored] = {};
     
     xQueueReceive(msgInQ, RX_Message_local, portMAX_DELAY);
 
@@ -275,52 +275,77 @@ void decodeTask(void * pvParameters) {
     }
     xSemaphoreGive(RX_MessageMutex);
 
+    // update local with the global arrays
     xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
     for (int i=0;i<maxNotesStored;i++){
       localRxTxPressArray[i]=globalRxTxPressArray[i];
       localRxTxOctaveArray[i]=globalRxTxOctaveArray[i];
-      localRxTxKeyArray[i]=globalRxTxKeyArray[i];
+      localRxTxMultipliedArray[i]=globalRxTxMultipliedArray[i];
     }
     xSemaphoreGive(RxTxArrayMutex);
 
     localRxTxIdx = __atomic_load_n(&globalRxTxidx, __ATOMIC_RELAXED); // retrieve required octave
-
-    // update local press array
-    // addToKeyArray(RX_Message_local);
+    localRxTxCounter = __atomic_load_n(&globalRxTxCounter, __ATOMIC_RELAXED);
     
-    localRxTxPressArray[localRxTxIdx] = RX_Message_local[0];
-    localRxTxOctaveArray[localRxTxIdx] = RX_Message_local[1];
-    localRxTxKeyArray[localRxTxIdx] = RX_Message_local[2];
-    localRxTxIdx += 1;
+    // update local arrays based on whether there is enough space
+    // if 'R', key was previously pressed -> find its index and unpress it. reduce the count
+    // else if 'P', if not enough space, then don't need add anything to array, 
+    //              else if enough space, find index of a empty location and add to array, increment count, and update global array
 
-    // update global
-    xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
-    for (int i=0;i<maxNotesStored;i++){
-      globalRxTxPressArray[i]=localRxTxPressArray[i];
-      globalRxTxOctaveArray[i]=localRxTxOctaveArray[i];
-      globalRxTxKeyArray[i]=localRxTxKeyArray[i];
-    }
-    xSemaphoreGive(RxTxArrayMutex);
-    __atomic_store_n(&globalRxTxidx,localRxTxIdx,__ATOMIC_RELAXED);
-
-
-    if(localRxTxIdx>0) {
-      __atomic_store_n(&testPointCheck,localRxTxIdx,__ATOMIC_RELAXED);
-      __atomic_store_n(&output,localRxTxPressArray[localRxTxIdx-1],__ATOMIC_RELAXED);
-      // output = localRxTxPressArray[0]; //BUG something wrong with popping the char. Output does not return char
-      uint8_t octave_local = localRxTxOctaveArray[localRxTxIdx-1];
-      uint8_t key_local = localRxTxKeyArray[localRxTxIdx-1]; //decrements idx as well
-      
-      if (output=='R') {
-      __atomic_store_n(&currentStepSize,0,__ATOMIC_RELAXED);
+    if (RX_Message_local[0] == 'R') { // finds location of the key to be removed and resets it 
+      uint8_t multipliedID = RX_Message_local[1]*RX_Message_local[2];
+      for (int i=0;i<maxNotesStored;i++){
+        if (localRxTxMultipliedArray[i] == multipliedID) {
+          __atomic_store_n(&output,RX_Message_local[0],__ATOMIC_RELAXED);
+          // locationIdx = i; // the index of the array to release is at locationIdx
+          localRxTxMultipliedArray[i]=0; // reset to 0 the location with the pressed note
+          break;
+        }
+      } 
+      localRxTxCounter-=1; // error
+      for (int i=0;i<maxNotesStored;i++){
+        globalRxTxMultipliedArray[i] = localRxTxMultipliedArray[i];
       }
-      else if (output=='P'){
-        int32_t localStepSize = stepSizes[key_local]; // CHECK IF NEED ATOMIC LOAD
-        localStepSize = localStepSize*pow(2,(octave_local-4));
-        __atomic_store_n(&currentStepSize,localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
+
+      __atomic_store_n(&globalRxTxCounter,localRxTxCounter,__ATOMIC_RELAXED);
+
+    } 
+    if ((RX_Message_local[0] == 'P') && (localRxTxCounter<maxNotesStored)) {
+      for (int i=0;i<maxNotesStored;i++){
+        if (localRxTxMultipliedArray[i] == 0) { // found location to add new note
+          __atomic_store_n(&output,RX_Message_local[0],__ATOMIC_RELAXED);
+          localRxTxOctaveArray[i] = RX_Message_local[1];
+          localRxTxKeyArray[i] = RX_Message_local[2];
+          localRxTxMultipliedArray[i] = RX_Message_local[1]*RX_Message_local[2];
+          break;
+        }
+      } 
+      localRxTxCounter += 1;
+
+      xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
+      for (int i=0;i<maxNotesStored;i++){
+        globalRxTxPressArray[i]=localRxTxPressArray[i]; // eventually do not even need this press array
+        globalRxTxOctaveArray[i]=localRxTxOctaveArray[i];
+        globalRxTxKeyArray[i]=localRxTxKeyArray[i];
+        globalRxTxMultipliedArray[i] = localRxTxMultipliedArray[i];
       }
+      xSemaphoreGive(RxTxArrayMutex);
+      __atomic_store_n(&globalRxTxCounter,localRxTxCounter,__ATOMIC_RELAXED);
     }
 
+    // debugging code by playing stuff
+    
+    uint8_t octave_local = localRxTxOctaveArray[0];
+    uint8_t key_local = localRxTxKeyArray[0]; //decrements idx as well
+    
+    if (output=='R') {
+    __atomic_store_n(&currentStepSize,0,__ATOMIC_RELAXED);
+    }
+    else if (output=='P'){
+      int32_t localStepSize = stepSizes[key_local]; // CHECK IF NEED ATOMIC LOAD
+      localStepSize = localStepSize*pow(2,(octave_local-4));
+      __atomic_store_n(&currentStepSize,localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
+    }
   }
 }
 

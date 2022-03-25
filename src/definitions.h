@@ -24,7 +24,9 @@
   volatile uint8_t globalRxTxKeyArray[maxNotesStored] = {};
   volatile uint8_t globalRxTxOctaveArray[maxNotesStored] = {};
   volatile char globalRxTxPressArray[maxNotesStored] = {};
+  volatile uint8_t globalRxTxMultipliedArray[maxNotesStored] = {}; // multiply octave and key to get a unique ID -> 0 if dont play, else play
   volatile uint8_t globalRxTxidx = 0; // to keep track of index of last element. Everytime an element is added in, the idx will increment
+  volatile uint8_t globalRxTxCounter = 0; // to keep track the number of elements filled -> must not exceed maxNotesStored
 
 //Queue handler
   QueueHandle_t msgInQ;
