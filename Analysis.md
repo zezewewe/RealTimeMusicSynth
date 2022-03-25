@@ -28,7 +28,29 @@ This documentation contains the analysis of the tasks' performance. For explanat
 Since latency,Ln (22.26ms) is lesser than the longest initiation task, tn (100ms), all tasks are executed within the interval of the longest task.
 
 # Critical Instant Analysis <a name="critical"></a>
-insert text here 
+A critical instant for a task is defined to be an instant at which a request for that task will have the largest response time. In other words, it is the worst-case scenario where every task i is initiated at the same time. 
+
+We consider the latency of the lowest-priority task (highest initiation interval, tn) and compare that to tn. For the schedule to work, the latency has to be less than tn. 
+
+# How we adapted the code
+
+1. scanKeysTask
+- Worst case occurs when all keys are pressed 
+- implemented by initialising prevQuartetStates with zeros (keys are pressed) so that when the function runs and finds the keys are released (not 0), it generates a load of release messages. Disable the update of prevQuartetStates to make the same thing happen every time.
+
+2. displayUpdateTask
+- Worst case scenario is in receiver mode (rx_or_tx == 1) as that will have the most items printed on the display
+
+3. decodeTask
+- Only for 1 key at a time
+
+4. CAN_TX_Task
+- Worst case depends on scanKeysTask
+
+5. generateCurrentStepArrayTask
+- Worst case scenario is when 5 keys are pressed at once. 
+- Set localRxTxMultipliedArray[i] = 1 to get the longest execution time 
+
 
 # Total CPU utilisation <a name="CPU_utilisation"></a>
 insert text here 
