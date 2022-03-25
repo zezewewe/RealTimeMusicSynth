@@ -13,6 +13,10 @@ This documentation contains the analysis of the tasks' performance. For explanat
 
 
 # Time Analysis of each task <a name="time_analysis"></a>
+
+To measure the execution time for a single task, we have to disable all the other tasks. Next, we run each task separately for 32 iterations and find the average. This is to average out measurement inaccuracies.
+
+
 |             Task             | Initiation Interval, ti (ms) | Execution Time, Ti (us) (32 iterations) | Execution Time, Ti (us) (per iteration) | tn/ti | (tn/ti)*Ti (s) |                 Commit ID                |
 |:----------------------------:|:----------------------------:|:---------------------------------------:|:---------------------------------------:|:-----:|:--------------:|:----------------------------------------:|
 | scanKeysTask                 |                           20 |                                    3051 |                                   95.34 |     5 |    0.000476719 | 4e62d4fa369764adce4eb34d112c3d424d3daae7 |
