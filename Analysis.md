@@ -21,6 +21,12 @@ This documentation contains the analysis of the tasks' performance. For explanat
 | CAN_TX_Task                  |                           60 |                                      79 |                                    2.47 |  1.67 |    4.11458E-06 | 4852abb2121396965b59a2d9735347eb99a36166 |
 | generateCurrentStepArrayTask |                           20 |                                   26000 |                                   812.5 |     5 |      0.0040625 | 9a9f857e22da221b61651f16c45e3e618d74ba2f |
 
+| Lowest priority task, initiation interval, tn (ms) | 100   |
+|----------------------------------------------------|-------|
+| Latency, Ln (sum of (tn/ti)*Ti) (ms)               | 22.26 |
+
+Since latency,Ln (22.26ms) is lesser than the longest initiation task, tn (100ms), all tasks are executed within the interval of the longest task.
+
 # Critical Instant Analysis <a name="critical"></a>
 insert text here 
 
