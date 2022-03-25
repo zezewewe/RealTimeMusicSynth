@@ -125,7 +125,7 @@ void CAN_RX_ISR(void){
 void CAN_TX_Task() {
   uint8_t msgOut[8];
   // while(1){
-  for (int i=0; i < 1; i++){
+  for (int i=0; i < 3; i++){
     xQueueReceive(msgOutQ,msgOut,portMAX_DELAY);
     xSemaphoreTake(CAN_TX_Semaphore, portMAX_DELAY);
     CAN_TX(0x123,msgOut);
@@ -144,7 +144,7 @@ void scanKeysTask() {
   Generate TX Message, and send to msgInQ and msgOutQ for RX and TX repsectively 
   */
 
-  static uint16_t prevQuartetStates [] = {0xf, 0xf, 0xf};
+  static uint16_t prevQuartetStates[] = {0xf, 0xf, 0xf};
   
   const TickType_t xFrequency = 20/portTICK_PERIOD_MS; // convert time in ms to scheduler ticks 
   TickType_t xLastWakeTime = xTaskGetTickCount(); // store the tick count of the last initiation
@@ -185,18 +185,17 @@ void scanKeysTask() {
       uint8_t prevQuartetState = prevQuartetStates[i];
       for (uint8_t j=0; j < 4; j++){ // iterate through each key
         uint8_t mask = 1 <<(3-j);
-        // if (rx_or_tx == 1) {
-        //       TX_Message[1] = defaultRxOctave; // Receiver has octave 4
-        //     } else {
-        //       TX_Message[1] = defaultTxOctave; // Receiver has octave 5
-        //     }
+        if (rx_or_tx == 1) {
+              TX_Message[1] = defaultRxOctave; // Receiver has octave 4
+            } else {
+              TX_Message[1] = defaultTxOctave; // Receiver has octave 5
+            }
         if ((mask & currentQuartetState)>(mask & prevQuartetState)){ // 1 is released 0 is pressed
               // keys are all released
               TX_Message[0] = 'R';
         }
       }
       xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
-
       // // for each quartet, check if current key state is same as previous key state 
       // if ((currentQuartetState^prevQuartetStates[i])==0){
       //   continue;
@@ -224,13 +223,13 @@ void scanKeysTask() {
       //   }
       // }
 
-      prevQuartetStates[i] = currentQuartetState; // update quartet
+      // prevQuartetStates[i] = currentQuartetState; // update quartet
 
-      if (rx_or_tx == 2 || rx_or_tx == 0) {//If loopback or tx
-        xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
-      } else if (rx_or_tx == 1) { // If rx
-        xQueueSendFromISR(msgInQ,TX_Message,NULL);
-      }
+      // if (rx_or_tx == 2 || rx_or_tx == 0) {// If loopback or tx
+      //   xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+      // } else if (rx_or_tx == 1) { // If rx
+      //   xQueueSendFromISR(msgInQ,TX_Message,NULL);
+      // }
     }
   }
 }
@@ -543,10 +542,9 @@ void setup() {
   uint32_t startTime = micros(); // iniitialise startime 
   scanKeysTask(); // run task once
 
-  // updateDisplayTask //
   // displayUpdateTask(); // run task once 
   
-  decodeTask(); // run task once 
+  // decodeTask(); // run task once 
   
   // CAN_TX_Task(); // run task once
 

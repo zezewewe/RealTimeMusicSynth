@@ -7,7 +7,7 @@
   const char* keyNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", ""};
 
   const uint8_t maxNotesStored = 10;
-  const int rx_or_tx = 1; // 0 for loopback, 1 for rx, 2 for tx
+  const int rx_or_tx = 2; // 0 for loopback, 1 for rx, 2 for tx
   const int defaultRxOctave = 5;
   const int defaultTxOctave = defaultRxOctave+1;
 
