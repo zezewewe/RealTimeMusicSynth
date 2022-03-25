@@ -24,7 +24,7 @@ void sampleISR() {
     static int32_t currentPhaseChordTable[maxNotesStored]; 
 
     for (int i=0;i<maxNotesStored;i++){
-      localcurrentStepSizeArr[i]=currentStepSizeArr[i];
+      localcurrentStepSizeArr[i] = __atomic_load_n(&currentStepSizeArr[i], __ATOMIC_RELAXED); // retrieve required octave
     }
 
     for (int i=0;i<maxNotesStored;i++){
