@@ -14,10 +14,15 @@ This documentation contains the analysis of the tasks' performance. For explanat
 
 # Time Analysis of each task <a name="time_analysis"></a>
 
+Initiation: A new iteration of a task
+Initiation interval (τ): time between initiations of a particular task
+Deadline: time by which the task must be complete – often assumed to be the same as τ
+Execution time (T): CPU time needed to complete a task if it is not interrupted
+Latency, Ln: time actually taken to complete a task
+
 To measure the execution time for a single task, we have to disable all the other tasks. Next, we run each task separately for 32 iterations and find the average. This is to average out measurement inaccuracies.
 
-
-|             Task             | Initiation Interval, ti (ms) | Execution Time, Ti (us) (32 iterations) | Execution Time, Ti (us) (per iteration) | tn/ti | (tn/ti)*Ti (s) |                 Commit ID                |
+|             Task             | Initiation Interval, τi (ms) | Execution Time, Ti (us) (32 iterations) | Execution Time, Ti (us) (per iteration) | τn/τi | (τn/τi)*Ti (s) |                 Commit ID                |
 |:----------------------------:|:----------------------------:|:---------------------------------------:|:---------------------------------------:|:-----:|:--------------:|:----------------------------------------:|
 | scanKeysTask                 |                           20 |                                    3051 |                                   95.34 |     5 |    0.000476719 | 4e62d4fa369764adce4eb34d112c3d424d3daae7 |
 | displayUpdateTask            |                          100 |                                  555572 |                                17361.63 |     1 |    0.017361625 | c2020273debcac73a500bc6ae7fe348c4ae6c57c |
@@ -29,12 +34,20 @@ To measure the execution time for a single task, we have to disable all the othe
 |----------------------------------------------------|-------|
 | Latency, Ln (sum of (tn/ti)*Ti) (ms)               | 22.26 |
 
-Since latency, Ln (22.26ms) is lesser than the longest initiation task, tn (100ms), all tasks are executed within the interval of the longest task.
+Since latency, Ln (22.26ms) is lesser than the longest initiation task, tn (100ms), all tasks are executed within the interval of the longest task. 
 
 # Critical Instant Analysis <a name="critical"></a>
-A critical instant for a task is defined to be an instant at which a request for that task will have the largest response time. In other words, it is the worst-case scenario where every task i is initiated at the same time. 
+A critical instant for a task is defined to be an instant at which a request for that task will have the largest response time. In other words, it considers the worst-case scenario where every task i is initiated at the same time. 
 
-We consider the latency of the lowest-priority task (highest initiation interval, tn) and compare that to tn. For the schedule to work, the latency has to be less than tn. 
+Critical analysis for rate monotonic scheduling:
+Assumptions: 
+1. Single CPU
+2. Tasks have fixed execution times
+3. Fixied initiation interval for each task, which is also its deadline
+4. No dependencies, no switching overheads
+5. Fixed task priority
+
+We consider the latency of the lowest-priority task (highest initiation interval, τn) and compare that to τn. For the schedule to work, the latency has to be less than τn. 
 
 -- How we adapted the code --
 
