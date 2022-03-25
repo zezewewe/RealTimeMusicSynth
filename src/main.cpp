@@ -306,14 +306,15 @@ void displayUpdateTask(void * pvParameters) {
     } else {
       u8g2.print(defaultRxOctave); 
     }
+    if (rx_or_tx!=2){
+      u8g2.drawStr(58,20,"|Wave");
+      u8g2.setCursor(84,30);
+      u8g2.print(knob2Rotation);
 
-    u8g2.drawStr(58,20,"|Wave");
-    u8g2.setCursor(84,30);
-    u8g2.print(knob2Rotation);
-
-    u8g2.drawStr(95,20,"|Vol|");
-    u8g2.setCursor(110,30);
-    u8g2.print(knob3Rotation);
+      u8g2.drawStr(95,20,"|Vol|");
+      u8g2.setCursor(110,30);
+      u8g2.print(knob3Rotation);
+    }
 
     uint8_t RX_Message_local[8];
     xSemaphoreTake(RX_MessageMutex, portMAX_DELAY);
