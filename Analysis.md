@@ -31,3 +31,22 @@ Insert para here
 Insert para here
 
 
+## Helper functions <a name="helper"></a>
+
+<mark>add pic of switch matrix here</mark>
+
+1. setRow(uint8_t rowIdx)
+This function selects the desired row rowIdx of the switch matrix by writing the corresponding bits to the row select address pins.
+
+2. readCols(uint8_t rowIdx)
+This function reads 
+
+
+### Additional Class created - KnobDecoder
+
+There are several methods in the class.
+1. setParams(uint8_t lowerLim, uint8_t upperLim, uint8_t knobIdx)
+The function defines the limits of each knob. It takes in a lower limit and upper limit value, and at the same time sets the knob ID that should be used to assign the lower and upper limit value.
+
+2. updateRotationValue(uint8_t keyValueRaw)
+The 
