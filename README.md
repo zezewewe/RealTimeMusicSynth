@@ -29,8 +29,10 @@ Additionally, a [class](#class-knobdecoder) was created for convenience of codin
 1. sampleISR
 
 2. CAN_RX_ISR
+The interrupt will obtain messages that are received, and place these messages into a msgInQ queue using xQueueSendFromISR().
 
 3. CAN_TX_ISR
+This interrupt will obtain messages in the msgOutQ queue using xQueueReceive(), and then transmit through the CAN bus with ID 0x123.
 
 ## Helper functions <a name="helper"></a>
 
@@ -45,4 +47,12 @@ This function reads the inputs
 
 ### Class KnobDecoder
 
+There are several methods in the KnobDecoder class.
+1. setParams(uint8_t lowerLim, uint8_t upperLim, uint8_t knobIdx)
+The function defines the limits of each knob. It takes in a lower limit and upper limit value, and at the same time sets the knob ID that should be used to assign the lower and upper limit value.
 
+2. updateRotationValue(uint8_t keyValueRaw)
+The function calculates the current knob state, and then compares that with the previous knob state to determine the direction of rotation. The knob state is then updated.
+
+3. returnRotationValue()
+The function returns the knob value
