@@ -78,7 +78,7 @@ Based on the assumptions of rate-monotonic scheduling, if we were to then alloca
 # Safe Access and Synchronisation <a name="safety_features"></a>
 Synchronisation is the technique to overcome the problem of concurrent access to shared data which can result in data inconsistency. Concurrent data access is dangerous as it may result in the interrupt or scheduler swapping threads. As a result, the code will not function as expected. 
 
-In order to have safe access and synchronisation, our code utilises mutexes, semaphores, queues, atomic memory access which are designed to support concurrent systems
+In order to have safe access and synchronisation, our code utilises mutexes, semaphores, queues, atomic memory access which are designed to support concurrent systems.
 
 ### Identification of shared data structures
 #### Shared Variables
