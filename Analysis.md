@@ -49,4 +49,3 @@ There are several methods in the class.
 The function defines the limits of each knob. It takes in a lower limit and upper limit value, and at the same time sets the knob ID that should be used to assign the lower and upper limit value.
 
 2. updateRotationValue(uint8_t keyValueRaw)
-The 
