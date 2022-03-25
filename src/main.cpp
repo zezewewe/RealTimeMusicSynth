@@ -540,13 +540,13 @@ void setup() {
   
   // Measuring execution time over fixed number of iterations
   uint32_t startTime = micros(); // iniitialise startime 
-  scanKeysTask(); // run task once
+  // scanKeysTask(); // run task once
 
-  // displayUpdateTask(); // run task once 
+  displayUpdateTask(); // run task once 
   
   // decodeTask(); // run task once 
   
-  CAN_TX_Task(); // run task once
+  // CAN_TX_Task(); // run task once
 
   // generateCurrentStepArrayTask(); 
 
