@@ -12,6 +12,9 @@
 #define chords 1
 // #define polyphony 1 // not implemented
 
+// initialise time difference for execution time
+int globaltimediff = 0;
+
 
 // Interrupt 1: 
 void sampleISR() {
@@ -104,9 +107,11 @@ void CAN_RX_ISR(void){
 }
 
 // Thread 4
-void CAN_TX_Task(void * pvParameters) {
+void CAN_TX_Task() { // void * pvParameters
   uint8_t msgOut[8];
-  while (1){
+
+  // while (1) {
+  for (int i=0; i < 1; i++) {
     xQueueReceive(msgOutQ,msgOut,portMAX_DELAY);
     xSemaphoreTake(CAN_TX_Semaphore, portMAX_DELAY);
     CAN_TX(0x123,msgOut);
@@ -118,7 +123,7 @@ void CAN_TX_ISR(void){
 }
 
 // Thread 1
-void scanKeysTask(void * pvParameters) { 
+void scanKeysTask() { // Change into function -- remove 'void * pvParameters'
   // loop through rows of key matrix; // read columns of matrix and store in keyArray; // update currentStepSize
   static uint16_t prevQuartetStates [] = {0xf, 0xf, 0xf};
   
@@ -133,12 +138,13 @@ void scanKeysTask(void * pvParameters) {
   knob1.setParams(0,2,1); // Waveform: Sawtooth; Triangle; Sinusoid  
   knob2.setParams(2,8,2); // Octave
   knob3.setParams(0,16,3); // Volume 
-
-  while(1) {
-    vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
+  
+  // while(1){
+  for (int i=0; i < 32; i++) { // 8b, Change to a for loop
+    // vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
     uint8_t localKeyArray[8];
     uint8_t TX_Message[8];
-
+    
     // Update keyArray for each row
     xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
     for (int i = 0; i < 8; i++) {
@@ -171,44 +177,59 @@ void scanKeysTask(void * pvParameters) {
 
     // Identify keys pressed and store into volatile currentStepSize
     uint8_t localKnob2 = __atomic_load_n(&knob2Rotation, __ATOMIC_RELAXED); // retrieve required octave
-    for (uint8_t i=0; i < 3; i++) {
+
+    for (uint8_t i=0; i < 3; i++) { //iterate through each row of keys
       uint8_t currentQuartetState = localKeyArray[i];
 
-      // for each quartet, check if current key state is same as previous key state 
-      if ((currentQuartetState^prevQuartetStates[i])==0){
-        continue;
-      } else {
-        uint8_t prevQuartetState = prevQuartetStates[i]; // recall previous quartet state
-        uint8_t changedBits = currentQuartetState^prevQuartetState; // identify changed bits in the quartet
-        for (uint8_t j=0; j < 4; j++){ // bitwise comparison for each bit in the quartet
-          uint8_t mask = 1<<(3-j);
-          if (mask & changedBits) { // this bit has changed
-            // this bit has a change
-            TX_Message[1] = localKnob2; // octave
-            TX_Message[2] = i*4 + j; // key
-            if ((mask & currentQuartetState)>(mask & prevQuartetState)){ // 1 is released 0 is pressed
-              // key released
+      // 8b attempt
+      uint8_t prevQuartetState = prevQuartetStates[i];
+      for (uint8_t j=0; j < 4; j++){ // iterate through each key
+        uint8_t mask = 1 <<(3-j);
+        if ((mask & currentQuartetState)>(mask & prevQuartetState)){ // 1 is released 0 is pressed
+              // keys are all released
               TX_Message[0] = 'R';
-            } else {
-              TX_Message[0] = 'P';
-            }
-          }
         }
       }
-      prevQuartetStates[i] = currentQuartetState; // update quartet
+      xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+
+      // for each quartet, check if current key state is same as previous key state 
+      // if ((currentQuartetState^prevQuartetStates[i])==0){ // current key state same as previous key state
+      //   continue;
+      // } else {
+      //   uint8_t prevQuartetState = prevQuartetStates[i]; // recall previous quartet state
+      //   uint8_t changedBits = currentQuartetState^prevQuartetState; // identify changed bits in the quartet
+      //   for (uint8_t j=0; j < 4; j++){ // bitwise comparison for each bit in the quartet
+      //     uint8_t mask = 1<<(3-j);
+      //     if (mask & changedBits) { // this bit has changed
+      //       // this bit has a change
+      //       TX_Message[1] = localKnob2; // octave
+      //       TX_Message[2] = i*4 + j; // key
+      //       if ((mask & currentQuartetState)>(mask & prevQuartetState)){ // 1 is released 0 is pressed
+      //         // key released
+      //         TX_Message[0] = 'R';
+      //       } else {
+      //         TX_Message[0] = 'P';
+
+              
+      //       }
+      //     }
+      //   }
+      // }
+      // prevQuartetStates[i] = currentQuartetState; // disabled to see execution time
     }
-    xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+    
   }
 }
 
 
 // Thread 2
-void displayUpdateTask(void * pvParameters) {
+void displayUpdateTask() { //void * pvParameters
   const TickType_t xFrequency = 100/portTICK_PERIOD_MS; // convert time in ms to scheduler ticks 
   TickType_t xLastWakeTime = xTaskGetTickCount(); // store the tick count of the last initiation
   
-  while(1) {
-    vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
+  //while(1) {
+  for (int i=0; i < 32; i++){
+    // vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
     
     // Toggle LED
     digitalToggle(LED_BUILTIN);  
@@ -249,10 +270,12 @@ void displayUpdateTask(void * pvParameters) {
 }
 
 // Thread 3
-void decodeTask(void * pvParameters) { 
-  while(1) {
+void decodeTask() {  // void * pvParameters
+  
+  //while(1) {
+  for (int i=0; i < 32; i++){
     uint8_t RX_Message_local[8];
-
+  
     xQueueReceive(msgInQ, RX_Message_local, portMAX_DELAY);
 
     xSemaphoreTake(RX_MessageMutex, portMAX_DELAY);
@@ -271,10 +294,9 @@ void decodeTask(void * pvParameters) {
   }
 }
 
-
 void setup() {
   // put your setup code here, to run once:
-
+ 
   // Initialize the CAN bus
   CAN_Init(true); // receive and ack own messages
   setCANFilter(0x123,0x7ff); //only messages with ID 0x123 will be received; every bit of the ID must match the filter for msg to be accepted
@@ -283,7 +305,8 @@ void setup() {
   CAN_Start(); 
   //Initialize queue handler
   msgInQ = xQueueCreate(36,8); // store 36 items -> msg decoding task lower priority as msgs can queue up longer; 8 bytes size for each item
-  msgOutQ = xQueueCreate(36,8); // store 36 items -> msg decoding task lower priority as msgs can queue up longer; 8 bytes size for each item
+  // msgOutQ = xQueueCreate(36,8); // store 36 items -> msg decoding task lower priority as msgs can queue up longer; 8 bytes size for each item
+  msgOutQ = xQueueCreate(384,8); // Change size to 384 so that every generated message can be queued without blocking
 
   //Set pin directions
   pinMode(RA0_PIN, OUTPUT);
@@ -313,53 +336,53 @@ void setup() {
   TIM_TypeDef *Instance = TIM1; 
   HardwareTimer *sampleTimer = new HardwareTimer(Instance);
   sampleTimer->setOverflow(22000, HERTZ_FORMAT); // function triggered by interrupt 22k times per second
-  sampleTimer->attachInterrupt(sampleISR);
+  // sampleTimer->attachInterrupt(sampleISR);
   sampleTimer->resume();
 
   
   // Initialize scanKeyTask() THREAD
-  TaskHandle_t scanKeysHandle = NULL;
-  xTaskCreate(
-    scanKeysTask,   // Function that implements task
-    "scankeys",     // Text name for the task
-    64,             // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
-    NULL,           // Param passed into the task
-    2,              // Task priority
-    &scanKeysHandle //Pointer to store the task handle
-  );
+//   TaskHandle_t scanKeysHandle = NULL;
+//  xTaskCreate(
+//     scanKeysTask,   // Function that implements task
+//     "scankeys",     // Text name for the task
+//     64,             // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
+//     NULL,           // Param passed into the task
+//     2,              // Task priority
+//     &scanKeysHandle //Pointer to store the task handle
+//   );
 
   // Initialize displayUpdateTask() THREAD
-  TaskHandle_t displayUpdateHandle = NULL;
-  xTaskCreate(
-    displayUpdateTask,   // Function that implements task
-    "displayUpdate",     // Text name for the task
-    256,                  // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
-    NULL,                // Param passed into the task
-    1,                   // Task priority
-    &displayUpdateHandle //Pointer to store the task handle
-  );
+  // TaskHandle_t displayUpdateHandle = NULL;
+  // xTaskCreate(
+  //   displayUpdateTask,   // Function that implements task
+  //   "displayUpdate",     // Text name for the task
+  //   256,                  // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
+  //   NULL,                // Param passed into the task
+  //   1,                   // Task priority
+  //   &displayUpdateHandle //Pointer to store the task handle
+  // );
 
   // Initialize decodeTask() THREAD
-  TaskHandle_t decodeHandle = NULL;
-  xTaskCreate(
-    decodeTask,   // Function that implements task
-    "decode",     // Text name for the task
-    256,                  // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
-    NULL,                // Param passed into the task
-    1,                   // Task priority
-    &decodeHandle //Pointer to store the task handle
-  );
+  // TaskHandle_t decodeHandle = NULL;
+  // xTaskCreate(
+  //   decodeTask,   // Function that implements task
+  //   "decode",     // Text name for the task
+  //   256,                  // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
+  //   NULL,                // Param passed into the task
+  //   1,                   // Task priority
+  //   &decodeHandle //Pointer to store the task handle
+  // );
 
   // Initialize CAN_TX_Task() THREAD
-  TaskHandle_t CAN_TXHandle = NULL;
-  xTaskCreate(
-    CAN_TX_Task,   // Function that implements task
-    "CAN_TX",     // Text name for the task
-    256,                  // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
-    NULL,                // Param passed into the task
-    1,                   // Task priority
-    &CAN_TXHandle //Pointer to store the task handle
-  );
+  // TaskHandle_t CAN_TXHandle = NULL;
+  // xTaskCreate(
+  //   CAN_TX_Task,   // Function that implements task
+  //   "CAN_TX",     // Text name for the task
+  //   256,                  // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
+  //   NULL,                // Param passed into the task
+  //   1,                   // Task priority
+  //   &CAN_TXHandle //Pointer to store the task handle
+  // );
 
 
   // Initialize Mutex
@@ -369,13 +392,38 @@ void setup() {
   // Creating Semaphore
   CAN_TX_Semaphore = xSemaphoreCreateCounting(3,3); 
 
-  vTaskStartScheduler();
-
   //Initialise UART
   Serial.begin(9600);
   Serial.println("Hello World");
+  
+  // Measuring execution time over fixed number of iterations
+
+  
+  uint32_t startTime = micros(); // iniitialise startime 
+  
+  scanKeysTask(); // run task once
+
+  // updateDisplayTask //
+  // displayUpdateTask(); // run task once 
+  
+  // decodeTask(); // run task once 
+  
+  // CAN_TX_Task(); // run task once
+
+  int localtimediff = micros()-startTime; // Calculate execution time 
+  __atomic_store_n(&globaltimediff,localtimediff,__ATOMIC_RELAXED); // Store to global variable 
+  vTaskStartScheduler();
+  
+ 
 }
 
 
 void loop() {
+  
+  // Print execution time
+  Serial.println("The execution time is:");
+  Serial.println(globaltimediff);
+  delay(1000);
+     
 }
+
