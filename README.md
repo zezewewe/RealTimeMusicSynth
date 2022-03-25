@@ -1,7 +1,7 @@
 # Real-Time Music Synthesizer Coursework
 
 ## Introduction
-Documentation for this Repository is split into two parts. This readme file explains the implementation of tasks and explanation of the code. Analysis of the performance of tasks can be found [here](Analysis.md).
+Documentation for this Repository is split into two parts. This readme file explains the implementation of tasks and explanation of the code. Analysis of the performance of tasks can be found [here](Analysis.md). 
 
 ### Overview of Synthesizer <a name="link1"></a>
 - Our Synthesizer is modular, and two keyboards can be programmed to be played together, connected through a CAN bus. 
@@ -12,6 +12,12 @@ Documentation for this Repository is split into two parts. This readme file expl
 - Knobs allow for the user to choose between three waveforms (Sawtooth, Triangle, Sinusoidal) and the preferred volume level (5-16). These options are displayed interactively on the display screen. 
 - The octave is pre-defined, with the receiver on octave 5 and the transmitter an octave above. The note played is displayed on screen. 
 - Three playing modes are available, and polyphony is the default setting. In polyphony, up to a user-defined number of notes can be played at any time (the default is 10). In monophony, only 1 note can be played at a time. In chords, the playing of one note will result in that major chord being sound. The chords mode was meant as an exploration of adding waveforms together, and acts as a basso continuo. 
+
+### Demo Video
+The following video demonstrates polyphony across two keyboards, the left of which is RX, and the right RX. Sound output comes out from the left speaker. Notes are played for all three waveforms, Sawtooth, Triangle and Sinusoidal. 
+
+[![GoelSynth](https://img.youtube.com/vi/0E2B9Qj-xCs/0.jpg)](https://youtu.be/0E2B9Qj-xCs "GoelSynth Demo")
+
 
 ## Explaining the codebase
 The code in the repository is split into three main parts:
