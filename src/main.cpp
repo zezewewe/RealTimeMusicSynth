@@ -308,9 +308,16 @@ void displayUpdateTask(void * pvParameters) {
     }
     if (rx_or_tx!=2){
       u8g2.drawStr(58,20,"|Wave");
-      u8g2.setCursor(84,30);
-      u8g2.print(knob2Rotation);
-
+      // u8g2.setCursor(84,30);
+      uint8_t localKnob2Rotation = __atomic_load_n(&knob2Rotation, __ATOMIC_RELAXED);
+      if (localKnob2Rotation==0){
+        u8g2.drawStr(64,30,"Saw /|");
+      } else if (localKnob2Rotation==1){
+        u8g2.drawStr(65,30,"Tri w");
+      } else {
+        u8g2.drawStr(65,30,"Sin ~");
+      }
+      
       u8g2.drawStr(95,20,"|Vol|");
       u8g2.setCursor(110,30);
       u8g2.print(knob3Rotation);
