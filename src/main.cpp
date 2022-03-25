@@ -151,6 +151,7 @@ void CAN_TX_Task() {
     CAN_TX(0x123,msgOut);
   }
 }
+
 // Interrupt 3 for Thread 4
 void CAN_TX_ISR(void){
   xSemaphoreGiveFromISR(CAN_TX_Semaphore, NULL); //give semaphore each time mailbox is available
@@ -208,16 +209,22 @@ void scanKeysTask() {
     // knob2Rotation = knob2.returnRotationValue();
     // knob3Rotation = knob3.returnRotationValue();
     // xSemaphoreGive(keyArrayMutex);
+  
 
   // Identify keys pressed and store into volatile currentStepSize
    uint8_t localKnob2 = __atomic_load_n(&knob2Rotation, __ATOMIC_RELAXED); // retrieve required octave
    for (uint8_t i=0; i < 3; i++) { //iterate through each row of keys
       uint8_t currentQuartetState = localKeyArray[i];
-
-      // 8b attempt
+      
+      // Confirm that all keys are "released" and send a message for each of the 12 keys
       uint8_t prevQuartetState = prevQuartetStates[i];
       for (uint8_t j=0; j < 4; j++){ // iterate through each key
         uint8_t mask = 1 <<(3-j);
+        // if (rx_or_tx == 1) {
+        //       TX_Message[1] = defaultRxOctave; // Receiver has octave 4
+        //     } else {
+        //       TX_Message[1] = defaultTxOctave; // Receiver has octave 5
+        //     }
         if ((mask & currentQuartetState)>(mask & prevQuartetState)){ // 1 is released 0 is pressed
               // keys are all released
               TX_Message[0] = 'R';
@@ -251,13 +258,14 @@ void scanKeysTask() {
       //     }
       //   }
       // }
-      // prevQuartetStates[i] = currentQuartetState; // update quartet
-      // if (rx_or_tx == 2 || rx_or_tx == 0) {//If loopback or tx
-      //   xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
-      // } else if (rx_or_tx == 1) { // If rx
-      //   // xQueueSend(msgInQ, TX_Message, portMAX_DELAY);
-      //   xQueueSendFromISR(msgInQ,TX_Message,NULL);
-      // }
+
+      prevQuartetStates[i] = currentQuartetState; // update quartet
+      if (rx_or_tx == 2 || rx_or_tx == 0) {//If loopback or tx
+        xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+      } else if (rx_or_tx == 1) { // If rx
+        xQueueSend(msgInQ, TX_Message, portMAX_DELAY);
+        xQueueSendFromISR(msgInQ,TX_Message,NULL);
+      }
     }
   }
 }
@@ -353,7 +361,7 @@ void displayUpdateTask() {
 // Thread 3
 void decodeTask() { 
   // while(1) {
-  for (int i =0; i<32; i++){
+  for (int i =0; i<1; i++){
     uint8_t RX_Message_local[8];
     uint8_t localRxTxCounter; 
     char localRxTxPressArray[maxNotesStored] = {};
@@ -458,7 +466,7 @@ void generateCurrentStepArrayTask(){
     for (int i=0;i<maxNotesStored;i++){
       localRxTxOctaveArray[i]=globalRxTxOctaveArray[i];
       localRxTxKeyArray[i] = globalRxTxKeyArray[i];
-      localRxTxMultipliedArray[i]=globalRxTxMultipliedArray[i];
+      localRxTxMultipliedArray[i]= 1; // globalRxTxMultipliedArray[i];
     }
     xSemaphoreGive(RxTxArrayMutex);
     
@@ -596,19 +604,17 @@ void setup() {
   // updateDisplayTask //
   // displayUpdateTask(); // run task once 
   
-  // decodeTask(); // run task once 
+  decodeTask(); // run task once 
   
   // CAN_TX_Task(); // run task once
 
   // generateCurrentStepArrayTask(); 
 
-
   int localtimediff = micros()-startTime; // Calculate execution time 
-  __atomic_store_n(&globaltimediff,localtimediff,__ATOMIC_RELAXED); // Update to global variable 
+  __atomic_store_n(&globaltimediff,localtimediff,__ATOMIC_RELAXED); // Update global variable 
   vTaskStartScheduler();
 
 }
-
 
 void loop() {
 
