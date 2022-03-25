@@ -14,11 +14,11 @@ This documentation contains the analysis of the tasks' performance. For explanat
 
 # Time Analysis of each task <a name="time_analysis"></a>
 
-Initiation: A new iteration of a task
-Initiation interval (τ): time between initiations of a particular task
-Deadline: time by which the task must be complete – often assumed to be the same as τ
-Execution time (T): CPU time needed to complete a task if it is not interrupted
-Latency, Ln: time actually taken to complete a task
+- Initiation: A new iteration of a task
+- Initiation interval (τ): time between initiations of a particular task
+- Deadline: time by which the task must be complete – often assumed to be the same as τ
+- Execution time (T): CPU time needed to complete a task if it is not interrupted
+- Latency, Ln: time actually taken to complete a task
 
 To measure the execution time for a single task, we have to disable all the other tasks. Next, we run each task separately for 32 iterations and find the average. This is to average out measurement inaccuracies.
 
