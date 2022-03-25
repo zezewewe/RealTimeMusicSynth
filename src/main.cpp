@@ -16,7 +16,7 @@
 void sampleISR() {
   // static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
   int32_t Vout;
-  uint8_t localKnob1 = __atomic_load_n(&knob1Rotation, __ATOMIC_RELAXED); // retrieve required waveform
+  uint8_t localKnob2 = __atomic_load_n(&knob2Rotation, __ATOMIC_RELAXED); // retrieve required waveform
   uint8_t localKnob3 = __atomic_load_n(&knob3Rotation, __ATOMIC_RELAXED); // retrieve required volume
 
 
@@ -28,15 +28,15 @@ void sampleISR() {
     phaseAccChordTable[0] += currentStepSize; 
     currentPhaseChordTable[0] = phaseAccChordTable[0]>>24;
 
-    if (localKnob1==0){ // sawtooth
+    if (localKnob2==0){ // sawtooth
       Vout = currentPhaseChordTable[0];
-    } else if (localKnob1==1) { // triangle
+    } else if (localKnob2==1) { // triangle
       if (currentPhaseChordTable[0]<= 0) { 
         Vout = 128+2*currentPhaseChordTable[0];
       } else {
         Vout = 127-2*currentPhaseChordTable[0];
       } 
-    } else if (localKnob1==2) { // sinusoid
+    } else if (localKnob2==2) { // sinusoid
       Vout = sineAmplitudeArray[currentPhaseChordTable[0]+128];
     }
 
@@ -51,12 +51,12 @@ void sampleISR() {
       currentPhaseChordTable[i] = (phaseAccChordTable[i])>>24;
     }
     
-    if (localKnob1==0){ // sawtooth
+    if (localKnob2==0){ // sawtooth
       Vout = 0;
       for (int i=0;i<3;i++){
         Vout += currentPhaseChordTable[i];
       }
-    } else if (localKnob1==1) { // triangle
+    } else if (localKnob2==1) { // triangle
       for (int i=0;i<3;i++){
         if (currentPhaseChordTable[i]<= 0) { 
           Vout += 128+2*currentPhaseChordTable[i];
@@ -64,7 +64,7 @@ void sampleISR() {
           Vout += 127-2*currentPhaseChordTable[i];
         } 
       }
-    } else if (localKnob1==2) { // sinusoid
+    } else if (localKnob2==2) { // sinusoid
       for (int i=0;i<3;i++){
         Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
       }
@@ -83,12 +83,12 @@ void sampleISR() {
       currentPhaseChordTable[i] = phaseAccChordTable[i]>>24;
     }
 
-    if (localKnob1==0){ // sawtooth
+    if (localKnob2==0){ // sawtooth
       Vout = 0;
       for (int i=0;i<maxNotesStored;i++){
         Vout += currentPhaseChordTable[i];
       }
-    } else if (localKnob1==1) { // triangle
+    } else if (localKnob2==1) { // triangle
       for (int i=0;i<maxNotesStored;i++){
         if (currentPhaseChordTable[i]<= 0) { 
           Vout += 128+2*currentPhaseChordTable[i];
@@ -96,7 +96,7 @@ void sampleISR() {
           Vout += 127-2*currentPhaseChordTable[i];
         } 
       }
-    } else if (localKnob1==2) { // sinusoid
+    } else if (localKnob2==2) { // sinusoid
       for (int i=0;i<maxNotesStored;i++){
         Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
       }
@@ -163,10 +163,10 @@ void scanKeysTask(void * pvParameters) {
   // uint8_t TX_Message[8] = {0};
 
   // Initialize knobs with lower and upper limit, as well as its knob id:
-  KnobDecoder knob0,knob1,knob2,knob3;
-  knob0.setParams(3,7,0);  
-  knob1.setParams(0,2,1); // Waveform: Sawtooth; Triangle; Sinusoid  
-  knob2.setParams(2,8,2); // Octave
+  KnobDecoder knob2,knob3;
+  // knob0.setParams(3,7,0);  
+  // knob1.setParams(0,2,1); // Waveform: Sawtooth; Triangle; Sinusoid  
+  knob2.setParams(0,2,2); // Waveform: Sawtooth; Triangle; Sinusoid 
   knob3.setParams(10,16,3); // Volume 
 
   while(1) {
@@ -191,7 +191,7 @@ void scanKeysTask(void * pvParameters) {
 
     // __atomic_store_n(&knob0Rotation,knob0.returnRotationValue(),__ATOMIC_RELAXED);
     // knob1.updateRotationValue(localKeyArray[4]);
-    // // knob1Rotation = knob1.returnRotationValue();
+    // knob1Rotation = knob1.returnRotationValue();
     // __atomic_store_n(&knob1Rotation,knob1.returnRotationValue(),__ATOMIC_RELAXED);
 
     knob2.updateRotationValue(localKeyArray[3]);
@@ -221,9 +221,9 @@ void scanKeysTask(void * pvParameters) {
             // this bit has a change
             // TX_Message[1] = localKnob2; // octave
             if (rx_or_tx == 1) {
-              TX_Message[1] = 5; // Receiver has octave 4
+              TX_Message[1] = defaultRxOctave; // Receiver has octave 4
             } else {
-              TX_Message[1] = 6; // Receiver has octave 5
+              TX_Message[1] = defaultTxOctave; // Receiver has octave 5
             }
             TX_Message[2] = i*4 + j; // key
             if ((mask & currentQuartetState)>(mask & prevQuartetState)){ // 1 is released 0 is pressed
@@ -261,8 +261,15 @@ void displayUpdateTask(void * pvParameters) {
     //Update display
     u8g2.clearBuffer();         // clear the internal memory
     u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
-    u8g2.drawStr(2,10,"GOEL Music Synth");  // write something to the internal memory
+    u8g2.drawStr(2,10,"GoelSynth");  // write something to the internal memory
 
+    if (rx_or_tx==1){
+      u8g2.drawStr(90,10,"[RX]"); 
+    } else if (rx_or_tx==2) {
+      u8g2.drawStr(90,10,"[TX]"); 
+    } else {
+      u8g2.drawStr(90,10,"[Loopback]"); 
+    }
     /*
     u8g2.setCursor(2,20);
     // u8g2.print(globalRxTxMultipliedArray[0]);
@@ -276,7 +283,7 @@ void displayUpdateTask(void * pvParameters) {
     */
     
     xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
-    u8g2.drawStr(2,30,"Note:");
+    // u8g2.drawStr(2,10,"Note:"); 
     uint8_t keyPressed = 12; // if no key is pressed, nothing will be displayed
     for (uint8_t i=0; i < 3; i++){
       for (uint8_t j=0; j < 4; j++){ 
@@ -286,15 +293,27 @@ void displayUpdateTask(void * pvParameters) {
         }
       }
     }
-    u8g2.setCursor(42,30);
-    u8g2.print(keyNames[keyPressed]);
-    u8g2.drawStr(65,30,"Octave:");
-    u8g2.setCursor(115,30);
-    u8g2.print(knob2Rotation);
-    u8g2.drawStr(65,20,"Volume:");
-    u8g2.setCursor(115,20);
-    u8g2.print(knob3Rotation);
     xSemaphoreGive(keyArrayMutex);
+    
+    u8g2.drawStr(2,30,"Note:");
+    u8g2.setCursor(34,30);
+    u8g2.print(keyNames[keyPressed]);
+
+    u8g2.drawStr(2,20,"Oct:");
+    u8g2.setCursor(25,20);
+    if (rx_or_tx==2){ // TX
+      u8g2.print(defaultTxOctave); 
+    } else {
+      u8g2.print(defaultRxOctave); 
+    }
+
+    u8g2.drawStr(58,20,"|Wave");
+    u8g2.setCursor(84,30);
+    u8g2.print(knob2Rotation);
+
+    u8g2.drawStr(95,20,"|Vol|");
+    u8g2.setCursor(110,30);
+    u8g2.print(knob3Rotation);
 
     uint8_t RX_Message_local[8];
     xSemaphoreTake(RX_MessageMutex, portMAX_DELAY);
