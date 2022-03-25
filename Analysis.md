@@ -41,7 +41,7 @@ Since latency, Ln (22.26ms) is lesser than the longest initiation task, tn (100m
 # Critical Instant Analysis <a name="critical"></a>
 A critical instant for a task is defined to be an instant at which a request for that task will have the largest response time. In other words, it considers the worst-case scenario where every task i is initiated at the same time. 
 
-###Critical analysis for rate monotonic scheduling:
+### Critical analysis for rate monotonic scheduling:
 ## Assumptions: 
 1. Single CPU
 2. Tasks have fixed execution times
