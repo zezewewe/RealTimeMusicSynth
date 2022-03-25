@@ -96,28 +96,28 @@ class KnobDecoder {
 };
 
 void addToKeyArray(uint8_t receivedMessageArr[]){
-  rxtxPressArray[rxtxKeyArray_idx] = receivedMessageArr[0];
-  rxtxOctaveArray[rxtxKeyArray_idx] = receivedMessageArr[1];
-  rxtxKeyArray[rxtxKeyArray_idx] = receivedMessageArr[2];
-  rxtxKeyArray_idx += 1;
+  globalRxTxPressArray[globalRxTxidx] = receivedMessageArr[0];
+  globalRxTxOctaveArray[globalRxTxidx] = receivedMessageArr[1];
+  globalRxTxKeyArray[globalRxTxidx] = receivedMessageArr[2];
+  globalRxTxidx += 1;
 }
 
 //Pop the press and return step
 char popFromPressArray()
 {
-  return rxtxPressArray[rxtxKeyArray_idx];
+  return globalRxTxPressArray[globalRxTxidx];
 }
 
 //Pop the octave and return step
 uint8_t popFromOctaveArray()
 {
-  return rxtxOctaveArray[rxtxKeyArray_idx];
+  return globalRxTxOctaveArray[globalRxTxidx];
 }
 
 //Pop the key and return step AND decrement
 uint8_t popFromKeyArray()
 {
-  uint8_t key = rxtxKeyArray[rxtxKeyArray_idx];
-  rxtxKeyArray_idx -= 1;
+  uint8_t key = globalRxTxKeyArray[globalRxTxidx];
+  globalRxTxidx -= 1;
   return key;
 }

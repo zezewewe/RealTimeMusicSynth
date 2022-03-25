@@ -201,7 +201,7 @@ void scanKeysTask(void * pvParameters) {
       if (rx_or_tx == 2 || rx_or_tx == 0) {//If loopback or tx
         xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
       } else if (rx_or_tx == 1) { // If rx
-        addToKeyArray(TX_Message);
+        // addToKeyArray(TX_Message);
       }
     }
   }
@@ -247,6 +247,7 @@ void displayUpdateTask(void * pvParameters) {
 
     u8g2.setCursor(66,30);
     u8g2.print((char) output);
+    // u8g2.print(testPointCheck);
     u8g2.print((char) RX_Message_local[0]);
     u8g2.print(RX_Message_local[1]);
     u8g2.print(RX_Message_local[2]);
@@ -259,6 +260,11 @@ void displayUpdateTask(void * pvParameters) {
 void decodeTask(void * pvParameters) { 
   while(1) {
     uint8_t RX_Message_local[8];
+    uint8_t localRxTxIdx;
+    char localRxTxPressArray[maxNotesStored] = {};
+    uint8_t localRxTxOctaveArray[maxNotesStored] = {};
+    uint8_t localRxTxKeyArray[maxNotesStored] = {};    
+
     
     xQueueReceive(msgInQ, RX_Message_local, portMAX_DELAY);
 
@@ -269,14 +275,41 @@ void decodeTask(void * pvParameters) {
     }
     xSemaphoreGive(RX_MessageMutex);
 
+    xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
+    for (int i=0;i<maxNotesStored;i++){
+      localRxTxPressArray[i]=globalRxTxPressArray[i];
+      localRxTxOctaveArray[i]=globalRxTxOctaveArray[i];
+      localRxTxKeyArray[i]=globalRxTxKeyArray[i];
+    }
+    xSemaphoreGive(RxTxArrayMutex);
+
+    localRxTxIdx = __atomic_load_n(&globalRxTxidx, __ATOMIC_RELAXED); // retrieve required octave
 
     // update local press array
-    addToKeyArray(RX_Message_local);
+    // addToKeyArray(RX_Message_local);
+    
+    localRxTxPressArray[localRxTxIdx] = RX_Message_local[0];
+    localRxTxOctaveArray[localRxTxIdx] = RX_Message_local[1];
+    localRxTxKeyArray[localRxTxIdx] = RX_Message_local[2];
+    localRxTxIdx += 1;
 
-    if(rxtxKeyArray_idx>0) {
-      output = rxtxPressArray[0]; //BUG something wrong with popping the char. Output does not return char
-      uint8_t octave_local = rxtxOctaveArray[0];
-      uint8_t key_local = rxtxKeyArray[0]; //decrements idx as well
+    // update global
+    xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
+    for (int i=0;i<maxNotesStored;i++){
+      globalRxTxPressArray[i]=localRxTxPressArray[i];
+      globalRxTxOctaveArray[i]=localRxTxOctaveArray[i];
+      globalRxTxKeyArray[i]=localRxTxKeyArray[i];
+    }
+    xSemaphoreGive(RxTxArrayMutex);
+    __atomic_store_n(&globalRxTxidx,localRxTxIdx,__ATOMIC_RELAXED);
+
+
+    if(localRxTxIdx>0) {
+      __atomic_store_n(&testPointCheck,localRxTxIdx,__ATOMIC_RELAXED);
+      __atomic_store_n(&output,localRxTxPressArray[localRxTxIdx-1],__ATOMIC_RELAXED);
+      // output = localRxTxPressArray[0]; //BUG something wrong with popping the char. Output does not return char
+      uint8_t octave_local = localRxTxOctaveArray[localRxTxIdx-1];
+      uint8_t key_local = localRxTxKeyArray[localRxTxIdx-1]; //decrements idx as well
       
       if (output=='R') {
       __atomic_store_n(&currentStepSize,0,__ATOMIC_RELAXED);
@@ -287,6 +320,7 @@ void decodeTask(void * pvParameters) {
         __atomic_store_n(&currentStepSize,localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
       }
     }
+
   }
 }
 
