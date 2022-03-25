@@ -22,6 +22,7 @@ This documentation contains the analysis of the tasks' performance. For explanat
 
 To measure the execution time for a single task, we have to disable all the other tasks. Next, we run each task separately for 32 iterations and find the average. This is to average out measurement inaccuracies.
 
+### Table performing critical instant analysis
 |             Task             | Initiation Interval, τi (ms) | Execution Time, Ti (us) (32 iterations) | Execution Time, Ti (us) (per iteration) | τn/τi | (τn/τi)*Ti (s) |                 Commit ID                |
 |:----------------------------:|:----------------------------:|:---------------------------------------:|:---------------------------------------:|:-----:|:--------------:|:----------------------------------------:|
 | scanKeysTask                 |                           20 |                                    3051 |                                   95.34 |     5 |    0.000476719 | 4e62d4fa369764adce4eb34d112c3d424d3daae7 |
@@ -30,6 +31,7 @@ To measure the execution time for a single task, we have to disable all the othe
 | CAN_TX_Task                  |                           60 |                                      79 |                                    2.47 |  1.67 |    4.11458E-06 | 4852abb2121396965b59a2d9735347eb99a36166 |
 | generateCurrentStepArrayTask |                           20 |                                   26000 |                                   812.5 |     5 |      0.0040625 | 9a9f857e22da221b61651f16c45e3e618d74ba2f |
 
+### Summarised results
 | Lowest priority task, initiation interval, tn (ms) | 100   |
 |----------------------------------------------------|-------|
 | Latency, Ln (sum of (tn/ti)*Ti) (ms)               | 22.26 |
@@ -39,8 +41,8 @@ Since latency, Ln (22.26ms) is lesser than the longest initiation task, tn (100m
 # Critical Instant Analysis <a name="critical"></a>
 A critical instant for a task is defined to be an instant at which a request for that task will have the largest response time. In other words, it considers the worst-case scenario where every task i is initiated at the same time. 
 
-Critical analysis for rate monotonic scheduling:
-Assumptions: 
+###Critical analysis for rate monotonic scheduling:
+## Assumptions: 
 1. Single CPU
 2. Tasks have fixed execution times
 3. Fixied initiation interval for each task, which is also its deadline
@@ -49,8 +51,7 @@ Assumptions:
 
 We consider the latency of the lowest-priority task (highest initiation interval, τn) and compare that to τn. For the schedule to work, the latency has to be less than τn. 
 
--- How we adapted the code --
-
+### How we adapted the code 
 1. scanKeysTask
 - Worst case occurs when all keys are pressed 
 - implemented by initialising prevQuartetStates with zeros (keys are pressed) so that when the function runs and finds the keys are released (not 0), it generates a load of release messages. Disable the update of prevQuartetStates to make the same thing happen every time.
@@ -90,4 +91,6 @@ In order to have safe access and synchronisation, our code utilises mutexes, sem
 - Global arrays such as globalRxTxMultipliedArray are updated by decodeTask thread and accessed in generateCurrentStepArrayTask thread. Similarly, a mutex is used to protect it.
 
 # Analysis of inter-task blocking dependencies <a name="intertask_blocking"></a>
-insert text here 
+Dependency is anything that can cause a task to block. 
+
+Many synchronisation structures work by blocking a task. For instance, a thread is held in a 'waiting' state until the data can be accessed. Hence, anything that causes a task to block is a dependency. We have to ensure that it is not possible for everything to be blocked, leading to a deadlock. 
