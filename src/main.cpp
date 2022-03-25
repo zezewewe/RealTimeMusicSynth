@@ -12,8 +12,6 @@
 //#define chords 1
 #define polyphony 1 
 
-int rx_or_tx = 0; // 0 for loopback, 1 for rx, 2 for tx
-
 // Interrupt 1: 
 void sampleISR() {
   // static int32_t phaseAcc = 0; // static local variable - value stored between successive calls
@@ -103,8 +101,6 @@ void sampleISR() {
         Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
       }
     }
-
-
   #endif
 
   // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
@@ -123,8 +119,14 @@ void sampleISR() {
   // }
 
   // Volume control
-  // Vout = Vout >> (8 - localKnob3/2);
-  Vout = Vout >> (8 - 10/2);
+
+  Vout = Vout >> (8 - localKnob3/2);
+  // Vout == 
+  // if (Vout>127) {
+  //   Vout = 127;
+  // } else if (Vout<-128) {
+  //   Vout = -128;
+  // }
   analogWrite(OUTR_PIN, Vout + 128);
 }
 
@@ -164,8 +166,8 @@ void scanKeysTask(void * pvParameters) {
   KnobDecoder knob0,knob1,knob2,knob3;
   knob0.setParams(3,7,0);  
   knob1.setParams(0,2,1); // Waveform: Sawtooth; Triangle; Sinusoid  
-  knob2.setParams(4,8,2); // Octave
-  knob3.setParams(0,16,3); // Volume 
+  knob2.setParams(2,8,2); // Octave
+  knob3.setParams(10,16,3); // Volume 
 
   while(1) {
     vTaskDelayUntil(&xLastWakeTime, xFrequency); // blocks execution until a certain time has passed since the last time the function was completed
@@ -217,14 +219,18 @@ void scanKeysTask(void * pvParameters) {
           uint8_t mask = 1<<(3-j);
           if (mask & changedBits) { // this bit has changed
             // this bit has a change
-            TX_Message[1] = localKnob2; // octave
+            // TX_Message[1] = localKnob2; // octave
+            if (rx_or_tx == 1) {
+              TX_Message[1] = 5; // Receiver has octave 4
+            } else {
+              TX_Message[1] = 6; // Receiver has octave 5
+            }
             TX_Message[2] = i*4 + j; // key
             if ((mask & currentQuartetState)>(mask & prevQuartetState)){ // 1 is released 0 is pressed
               // key released
               TX_Message[0] = 'R';
             } else {
               TX_Message[0] = 'P';
-              
             }
           }
         }
@@ -233,7 +239,8 @@ void scanKeysTask(void * pvParameters) {
       if (rx_or_tx == 2 || rx_or_tx == 0) {//If loopback or tx
         xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
       } else if (rx_or_tx == 1) { // If rx
-        // addToKeyArray(TX_Message);
+        // xQueueSend(msgInQ, TX_Message, portMAX_DELAY);
+        xQueueSendFromISR(msgInQ,TX_Message,NULL);
       }
     }
   }
@@ -302,7 +309,7 @@ void displayUpdateTask(void * pvParameters) {
 void decodeTask(void * pvParameters) { 
   while(1) {
     uint8_t RX_Message_local[8];
-    uint8_t localRxTxIdx, localRxTxCounter;
+    uint8_t localRxTxCounter; 
     char localRxTxPressArray[maxNotesStored] = {};
     uint8_t localRxTxOctaveArray[maxNotesStored] = {};
     uint8_t localRxTxKeyArray[maxNotesStored] = {};
@@ -327,7 +334,6 @@ void decodeTask(void * pvParameters) {
     }
     xSemaphoreGive(RxTxArrayMutex);
 
-    localRxTxIdx = __atomic_load_n(&globalRxTxidx, __ATOMIC_RELAXED); // retrieve required octave
     localRxTxCounter = __atomic_load_n(&globalRxTxCounter, __ATOMIC_RELAXED);
     
     // update local arrays based on whether there is enough space
@@ -426,7 +432,7 @@ void setup() {
   // put your setup code here, to run once:
 
   // Initialize the CAN bus
-  CAN_Init(~rx_or_tx); // true for loopback. rx_or_tx = 0 is for loopback, 1 is rx, 2 is tx
+  CAN_Init((rx_or_tx==0)); // true for loopback. rx_or_tx = 0 is for loopback, 1 is rx, 2 is tx
   setCANFilter(0x123,0x7ff); //only messages with ID 0x123 will be received; every bit of the ID must match the filter for msg to be accepted
   CAN_RegisterRX_ISR(CAN_RX_ISR); // call ISR whenever CAN msg received -> pass pointer to relevant library function
   CAN_RegisterTX_ISR(CAN_TX_ISR); 
