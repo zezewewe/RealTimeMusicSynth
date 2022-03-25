@@ -94,11 +94,3 @@ class KnobDecoder {
       // return currentKnobState;
     };
 };
-
-// void addToKeyArray(uint8_t receivedMessageArr[]){
-//   globalRxTxPressArray[globalRxTxidx] = receivedMessageArr[0];
-//   globalRxTxOctaveArray[globalRxTxidx] = receivedMessageArr[1];
-//   globalRxTxKeyArray[globalRxTxidx] = receivedMessageArr[2];
-//   globalRxTxidx += 1;
-// }
-
