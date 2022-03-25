@@ -1,3 +1,5 @@
+  char output = '0';
+
 //Constants
   const uint32_t interval = 100; //Display update interval
   const double fs = 22e3;
@@ -5,6 +7,8 @@
   const int32_t stepSizes [] = {51076059,54113194,57330934,60740009,64351800,68178357,72232450,76527614,81078184,85899345,91007186,96418755,0};
   const int8_t sineAmplitudeArray [] = {0, 3, 6, 9, 12, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 54, 57, 60, 63, 66, 68, 71, 73, 76, 78, 81, 83, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 109, 111, 112, 114, 115, 116, 118, 119, 120, 121, 122, 123, 123, 124, 125, 125, 126, 126, 126, 127, 127, 127, 127, 127, 127, 127, 126, 126, 125, 125, 124, 124, 123, 122, 121, 120, 119, 118, 117, 116, 114, 113, 112, 110, 108, 107, 105, 103, 101, 99, 97, 95, 93, 91, 89, 87, 84, 82, 80, 77, 75, 72, 69, 67, 64, 61, 59, 56, 53, 50, 47, 44, 41, 39, 36, 32, 29, 26, 23, 20, 17, 14, 11, 8, 5, 2, -2, -5, -8, -11, -14, -17, -20, -23, -26, -29, -32, -36, -39, -41, -44, -47, -50, -53, -56, -59, -61, -64, -67, -69, -72, -75, -77, -80, -82, -84, -87, -89, -91, -93, -95, -97, -99, -101, -103, -105, -107, -108, -110, -112, -113, -114, -116, -117, -118, -119, -120, -121, -122, -123, -124, -124, -125, -125, -126, -126, -127, -127, -127, -127, -127, -127, -127, -126, -126, -126, -125, -125, -124, -123, -123, -122, -121, -120, -119, -118, -116, -115, -114, -112, -111, -109, -108, -106, -104, -102, -100, -98, -96, -94, -92, -90, -88, -86, -83, -81, -78, -76, -73, -71, -68, -66, -63, -60, -57, -54, -52, -49, -46, -43, -40, -37, -34, -31, -28, -25, -22, -19, -16, -12, -9, -6, -3, 0};
   const char* keyNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", ""};
+
+  const uint8_t maxNotesStored = 5;
 
 //Volatiles
   volatile int32_t currentStepSize; 
@@ -14,9 +18,22 @@
   volatile uint8_t knob2Rotation; // octave
   volatile uint8_t knob3Rotation; // volume
   volatile uint8_t testPointCheck;
+  volatile uint8_t testPointCheck1;
+  volatile uint8_t testPointCheck2;
+  volatile uint8_t testPointCheck3;
+  volatile uint8_t testPointCheck4;
 
-  uint8_t RX_Message[8] = {0}; // store outgoing messages
 
+  volatile uint8_t RX_Message[8] = {0}; // store outgoing messages
+  
+  volatile uint8_t globalRxTxKeyArray[maxNotesStored] = {};
+  volatile uint8_t globalRxTxOctaveArray[maxNotesStored] = {};
+  volatile char globalRxTxPressArray[maxNotesStored] = {};
+  volatile uint8_t globalRxTxMultipliedArray[maxNotesStored] = {}; // multiply (1+octave) and (1+key) to get a unique ID -> 0 if dont play, else play 
+  volatile uint8_t globalRxTxidx = 0; // to keep track of index of last element. Everytime an element is added in, the idx will increment
+  volatile uint8_t globalRxTxCounter = 0; // to keep track the number of elements filled -> must not exceed maxNotesStored
+  volatile int32_t currentStepSizeArr[maxNotesStored] = {};
+  
 //Queue handler
   QueueHandle_t msgInQ;
   QueueHandle_t msgOutQ;
@@ -24,6 +41,7 @@
 //FreeRTOS mutex -> used by different threads to access mutex obj
   SemaphoreHandle_t keyArrayMutex;
   SemaphoreHandle_t RX_MessageMutex;
+  SemaphoreHandle_t RxTxArrayMutex;
   SemaphoreHandle_t CAN_TX_Semaphore;
 
 //Pin definitions

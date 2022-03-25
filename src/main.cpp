@@ -9,9 +9,10 @@
 #include <waveformFunctions.h>
 
 // #define monophony 1
-#define chords 1
-// #define polyphony 1 // not implemented
+//#define chords 1
+#define polyphony 1 
 
+int rx_or_tx = 0; // 0 for loopback, 1 for rx, 2 for tx
 
 // Interrupt 1: 
 void sampleISR() {
@@ -70,9 +71,40 @@ void sampleISR() {
         Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
       }
     }
-  #else
-    static int32_t phaseAccChordTable[5];
-    static int32_t currentPhaseChordTable[5]; 
+  #elif polyphony
+    static int32_t localcurrentStepSizeArr[maxNotesStored];
+    static int32_t phaseAccChordTable[maxNotesStored];
+    static int32_t currentPhaseChordTable[maxNotesStored]; 
+
+    for (int i=0;i<maxNotesStored;i++){
+      localcurrentStepSizeArr[i]=currentStepSizeArr[i];
+    }
+
+    for (int i=0;i<maxNotesStored;i++){
+      phaseAccChordTable[i] += localcurrentStepSizeArr[i];
+      currentPhaseChordTable[i] = phaseAccChordTable[i]>>24;
+    }
+
+    if (localKnob1==0){ // sawtooth
+      Vout = 0;
+      for (int i=0;i<maxNotesStored;i++){
+        Vout += currentPhaseChordTable[i];
+      }
+    } else if (localKnob1==1) { // triangle
+      for (int i=0;i<maxNotesStored;i++){
+        if (currentPhaseChordTable[i]<= 0) { 
+          Vout += 128+2*currentPhaseChordTable[i];
+        } else {
+          Vout += 127-2*currentPhaseChordTable[i];
+        } 
+      }
+    } else if (localKnob1==2) { // sinusoid
+      for (int i=0;i<maxNotesStored;i++){
+        Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
+      }
+    }
+
+
   #endif
 
   // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
@@ -91,7 +123,8 @@ void sampleISR() {
   // }
 
   // Volume control
-  Vout = Vout >> (8 - localKnob3/2);
+  // Vout = Vout >> (8 - localKnob3/2);
+  Vout = Vout >> (8 - 10/2);
   analogWrite(OUTR_PIN, Vout + 128);
 }
 
@@ -131,7 +164,7 @@ void scanKeysTask(void * pvParameters) {
   KnobDecoder knob0,knob1,knob2,knob3;
   knob0.setParams(3,7,0);  
   knob1.setParams(0,2,1); // Waveform: Sawtooth; Triangle; Sinusoid  
-  knob2.setParams(2,8,2); // Octave
+  knob2.setParams(4,8,2); // Octave
   knob3.setParams(0,16,3); // Volume 
 
   while(1) {
@@ -191,13 +224,18 @@ void scanKeysTask(void * pvParameters) {
               TX_Message[0] = 'R';
             } else {
               TX_Message[0] = 'P';
+              
             }
           }
         }
       }
       prevQuartetStates[i] = currentQuartetState; // update quartet
+      if (rx_or_tx == 2 || rx_or_tx == 0) {//If loopback or tx
+        xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+      } else if (rx_or_tx == 1) { // If rx
+        // addToKeyArray(TX_Message);
+      }
     }
-    xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
   }
 }
 
@@ -219,6 +257,11 @@ void displayUpdateTask(void * pvParameters) {
     u8g2.drawStr(2,10,"PIANO!");  // write something to the internal memory
 
     u8g2.setCursor(2,20);
+    // u8g2.print(globalRxTxMultipliedArray[0]);
+    // u8g2.print(globalRxTxMultipliedArray[1]);
+    // u8g2.print(globalRxTxMultipliedArray[2]);
+    // u8g2.print(globalRxTxMultipliedArray[3]);
+    // u8g2.print(globalRxTxMultipliedArray[4]);
     xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
     u8g2.print(keyArray[0]<<8|keyArray[1]<<4|keyArray[2]<<0, BIN);
     xSemaphoreGive(keyArrayMutex);
@@ -240,9 +283,16 @@ void displayUpdateTask(void * pvParameters) {
     xSemaphoreGive(RX_MessageMutex);
 
     u8g2.setCursor(66,30);
-    u8g2.print((char) RX_Message_local[0]);
-    u8g2.print(RX_Message_local[1]);
-    u8g2.print(RX_Message_local[2]);
+    u8g2.print((char) output);
+    // u8g2.print(testPointCheck);
+    // u8g2.print((char) RX_Message_local[0]);
+    // u8g2.print(globalRxTxCounter);
+    u8g2.print(testPointCheck);
+    // u8g2.print(testPointCheck1);
+    // u8g2.print(testPointCheck2);
+    // u8g2.print(testPointCheck3);
+    // u8g2.print(testPointCheck4);
+
 
     u8g2.sendBuffer();          // transfer internal memory to the display
   }
@@ -252,31 +302,131 @@ void displayUpdateTask(void * pvParameters) {
 void decodeTask(void * pvParameters) { 
   while(1) {
     uint8_t RX_Message_local[8];
-
+    uint8_t localRxTxIdx, localRxTxCounter;
+    char localRxTxPressArray[maxNotesStored] = {};
+    uint8_t localRxTxOctaveArray[maxNotesStored] = {};
+    uint8_t localRxTxKeyArray[maxNotesStored] = {};
+    uint8_t localRxTxMultipliedArray[maxNotesStored] = {};
+    
     xQueueReceive(msgInQ, RX_Message_local, portMAX_DELAY);
 
+    // update RX_Message for display
     xSemaphoreTake(RX_MessageMutex, portMAX_DELAY);
     for (int i=0;i<8;i++){
       RX_Message[i]=RX_Message_local[i];
     }
     xSemaphoreGive(RX_MessageMutex);
 
-    if (RX_Message_local[0]=='R') {
-      __atomic_store_n(&currentStepSize,0,__ATOMIC_RELAXED);
-    } else if (RX_Message_local[0]=='P'){
-      int32_t localStepSize = stepSizes[RX_Message_local[2]]; // CHECK IF NEED ATOMIC LOAD
-      localStepSize = localStepSize*pow(2,(RX_Message_local[1]-4));
-      __atomic_store_n(&currentStepSize,localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
+    // update local with the global arrays
+    xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
+    for (int i=0;i<maxNotesStored;i++){
+      localRxTxPressArray[i]=globalRxTxPressArray[i];
+      localRxTxOctaveArray[i]=globalRxTxOctaveArray[i];
+      localRxTxKeyArray[i] = globalRxTxKeyArray[i];
+      localRxTxMultipliedArray[i]=globalRxTxMultipliedArray[i];
     }
+    xSemaphoreGive(RxTxArrayMutex);
+
+    localRxTxIdx = __atomic_load_n(&globalRxTxidx, __ATOMIC_RELAXED); // retrieve required octave
+    localRxTxCounter = __atomic_load_n(&globalRxTxCounter, __ATOMIC_RELAXED);
+    
+    // update local arrays based on whether there is enough space
+    // if 'R', key was previously pressed -> find its index and unpress it. reduce the count
+    // else if 'P', if not enough space, then don't need add anything to array, 
+    //              else if enough space, find index of a empty location and add to array, increment count, and update global array
+
+
+    uint8_t multipliedID = (RX_Message_local[1]+1)*(RX_Message_local[2]+1);
+    if ((RX_Message_local[0] == 'P') && (localRxTxCounter<maxNotesStored)) {
+
+      // find location in array that is empty
+      for (int i=0;i<maxNotesStored;i++){
+        if (localRxTxMultipliedArray[i] == 0) { // found location to add new note
+          __atomic_store_n(&output,RX_Message_local[0],__ATOMIC_RELAXED);
+          localRxTxOctaveArray[i] = RX_Message_local[1];
+          localRxTxKeyArray[i] = RX_Message_local[2];
+          localRxTxMultipliedArray[i] = multipliedID;
+          break;
+        }
+      } 
+      localRxTxCounter += 1;
+  
+      xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
+      // update global array
+      for (int i=0;i<maxNotesStored;i++){
+        globalRxTxPressArray[i]=localRxTxPressArray[i]; // eventually do not even need this press array
+        globalRxTxOctaveArray[i]=localRxTxOctaveArray[i];
+        globalRxTxKeyArray[i]=localRxTxKeyArray[i];
+        globalRxTxMultipliedArray[i] = localRxTxMultipliedArray[i];
+      }
+      xSemaphoreGive(RxTxArrayMutex);
+      __atomic_store_n(&globalRxTxCounter,localRxTxCounter,__ATOMIC_RELAXED);
+    }
+
+  
+    if ((RX_Message_local[0] == 'R') && (localRxTxCounter<=maxNotesStored)) { // finds location of the key to be removed and resets it 
+                                                  // note that the above still has a bug
+      for (int i=0;i<maxNotesStored;i++){ 
+        if (localRxTxMultipliedArray[i] == multipliedID) {
+          __atomic_store_n(&output,'X',__ATOMIC_RELAXED);
+          // locationIdx = i; // the index of the array to release is at locationIdx
+          localRxTxMultipliedArray[i]=0; // reset to 0 the location with the pressed note
+          __atomic_store_n(&testPointCheck,localRxTxMultipliedArray[i],__ATOMIC_RELAXED);
+          
+          break;
+        }
+      } 
+      localRxTxCounter-=1; 
+
+      xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
+      // update global array
+      for (int i=0;i<maxNotesStored;i++){
+        globalRxTxMultipliedArray[i] = localRxTxMultipliedArray[i];
+      }
+      xSemaphoreGive(RxTxArrayMutex);
+      __atomic_store_n(&globalRxTxCounter,localRxTxCounter,__ATOMIC_RELAXED);
+
+    } 
   }
 }
 
+// Thread 5
+void generateCurrentStepArrayTask(void * pvParameters){
+  const TickType_t xFrequency = 20/portTICK_PERIOD_MS; // convert time in ms to scheduler ticks 
+  TickType_t xLastWakeTime = xTaskGetTickCount(); // store the tick count of the last initiation
+
+  while(1){
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    uint8_t localRxTxOctaveArray[maxNotesStored] = {};
+    uint8_t localRxTxKeyArray[maxNotesStored] = {};
+    uint8_t localRxTxMultipliedArray[maxNotesStored] = {};
+
+    xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
+    for (int i=0;i<maxNotesStored;i++){
+      localRxTxOctaveArray[i]=globalRxTxOctaveArray[i];
+      localRxTxKeyArray[i] = globalRxTxKeyArray[i];
+      localRxTxMultipliedArray[i]=globalRxTxMultipliedArray[i];
+    }
+    xSemaphoreGive(RxTxArrayMutex);
+    
+    for (int i=0;i<maxNotesStored;i++){
+      if (localRxTxMultipliedArray[i]!=0){
+        int32_t localStepSize = stepSizes[localRxTxKeyArray[i]]; // 2nd note played always plays C. 
+        localStepSize = localStepSize*pow(2,(localRxTxOctaveArray[i]-4));
+        __atomic_store_n(&currentStepSizeArr[i],localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
+
+      } else {
+        __atomic_store_n(&currentStepSizeArr[i],0,__ATOMIC_RELAXED);
+      }
+    }
+  }
+}
 
 void setup() {
   // put your setup code here, to run once:
 
   // Initialize the CAN bus
-  CAN_Init(true); // receive and ack own messages
+  CAN_Init(~rx_or_tx); // true for loopback. rx_or_tx = 0 is for loopback, 1 is rx, 2 is tx
   setCANFilter(0x123,0x7ff); //only messages with ID 0x123 will be received; every bit of the ID must match the filter for msg to be accepted
   CAN_RegisterRX_ISR(CAN_RX_ISR); // call ISR whenever CAN msg received -> pass pointer to relevant library function
   CAN_RegisterTX_ISR(CAN_TX_ISR); 
@@ -350,6 +500,17 @@ void setup() {
     &decodeHandle //Pointer to store the task handle
   );
 
+  // Initialize generateCurrentStepArrayTask() THREAD
+  TaskHandle_t generateCurrentStepArrayHandle = NULL;
+  xTaskCreate(
+    generateCurrentStepArrayTask,   // Function that implements task
+    "generateCurrentStepArray",     // Text name for the task
+    256,                  // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
+    NULL,                // Param passed into the task
+    1,                   // Task priority
+    &generateCurrentStepArrayHandle //Pointer to store the task handle
+  );
+
   // Initialize CAN_TX_Task() THREAD
   TaskHandle_t CAN_TXHandle = NULL;
   xTaskCreate(
@@ -365,6 +526,7 @@ void setup() {
   // Initialize Mutex
   keyArrayMutex = xSemaphoreCreateMutex(); 
   RX_MessageMutex = xSemaphoreCreateMutex(); 
+  RxTxArrayMutex = xSemaphoreCreateMutex(); 
 
   // Creating Semaphore
   CAN_TX_Semaphore = xSemaphoreCreateCounting(3,3); 
