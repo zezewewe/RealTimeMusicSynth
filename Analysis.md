@@ -25,7 +25,7 @@ This documentation contains the analysis of the tasks' performance. For explanat
 |----------------------------------------------------|-------|
 | Latency, Ln (sum of (tn/ti)*Ti) (ms)               | 22.26 |
 
-Since latency,Ln (22.26ms) is lesser than the longest initiation task, tn (100ms), all tasks are executed within the interval of the longest task.
+Since latency, Ln (22.26ms) is lesser than the longest initiation task, tn (100ms), all tasks are executed within the interval of the longest task.
 
 # Critical Instant Analysis <a name="critical"></a>
 A critical instant for a task is defined to be an instant at which a request for that task will have the largest response time. In other words, it is the worst-case scenario where every task i is initiated at the same time. 
