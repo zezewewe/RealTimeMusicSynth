@@ -546,7 +546,7 @@ void setup() {
   
   // decodeTask(); // run task once 
   
-  // CAN_TX_Task(); // run task once
+  CAN_TX_Task(); // run task once
 
   // generateCurrentStepArrayTask(); 
 
