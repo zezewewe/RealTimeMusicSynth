@@ -32,7 +32,8 @@
   volatile uint8_t globalRxTxMultipliedArray[maxNotesStored] = {}; // multiply (1+octave) and (1+key) to get a unique ID -> 0 if dont play, else play 
   volatile uint8_t globalRxTxidx = 0; // to keep track of index of last element. Everytime an element is added in, the idx will increment
   volatile uint8_t globalRxTxCounter = 0; // to keep track the number of elements filled -> must not exceed maxNotesStored
-
+  volatile int32_t currentStepSizeArr[maxNotesStored] = {};
+  
 //Queue handler
   QueueHandle_t msgInQ;
   QueueHandle_t msgOutQ;

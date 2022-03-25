@@ -8,9 +8,9 @@
 #include <ES_CAN.h>
 #include <waveformFunctions.h>
 
-#define monophony 1
+// #define monophony 1
 //#define chords 1
-// #define polyphony 1 // not implemented
+#define polyphony 1 
 
 int rx_or_tx = 0; // 0 for loopback, 1 for rx, 2 for tx
 
@@ -71,9 +71,40 @@ void sampleISR() {
         Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
       }
     }
-  #else
-    static int32_t phaseAccChordTable[5];
-    static int32_t currentPhaseChordTable[5]; 
+  #elif polyphony
+    static int32_t localcurrentStepSizeArr[maxNotesStored];
+    static int32_t phaseAccChordTable[maxNotesStored];
+    static int32_t currentPhaseChordTable[maxNotesStored]; 
+
+    for (int i=0;i<maxNotesStored;i++){
+      localcurrentStepSizeArr[i]=currentStepSizeArr[i];
+    }
+
+    for (int i=0;i<maxNotesStored;i++){
+      phaseAccChordTable[i] += localcurrentStepSizeArr[i];
+      currentPhaseChordTable[i] = phaseAccChordTable[i]>>24;
+    }
+
+    if (localKnob1==0){ // sawtooth
+      Vout = 0;
+      for (int i=0;i<maxNotesStored;i++){
+        Vout += currentPhaseChordTable[i];
+      }
+    } else if (localKnob1==1) { // triangle
+      for (int i=0;i<maxNotesStored;i++){
+        if (currentPhaseChordTable[i]<= 0) { 
+          Vout += 128+2*currentPhaseChordTable[i];
+        } else {
+          Vout += 127-2*currentPhaseChordTable[i];
+        } 
+      }
+    } else if (localKnob1==2) { // sinusoid
+      for (int i=0;i<maxNotesStored;i++){
+        Vout += sineAmplitudeArray[currentPhaseChordTable[i]+128];
+      }
+    }
+
+
   #endif
 
   // uint8_t localCurrentStepSize = __atomic_load_n(&currentStepSize, __ATOMIC_RELAXED); // retrieve required waveform
@@ -93,7 +124,7 @@ void sampleISR() {
 
   // Volume control
   // Vout = Vout >> (8 - localKnob3/2);
-  Vout = Vout >> (8 - 15/2);
+  Vout = Vout >> (8 - 10/2);
   analogWrite(OUTR_PIN, Vout + 128);
 }
 
@@ -356,26 +387,40 @@ void decodeTask(void * pvParameters) {
       __atomic_store_n(&globalRxTxCounter,localRxTxCounter,__ATOMIC_RELAXED);
 
     } 
-
-    __atomic_store_n(&testPointCheck,localRxTxKeyArray[0],__ATOMIC_RELAXED);
-    // __atomic_store_n(&testPointCheck1,localRxTxMultipliedArray[1],__ATOMIC_RELAXED);
-    // __atomic_store_n(&testPointCheck2,localRxTxMultipliedArray[2],__ATOMIC_RELAXED);
-    // __atomic_store_n(&testPointCheck3,localRxTxMultipliedArray[3],__ATOMIC_RELAXED);
-    // __atomic_store_n(&testPointCheck4,localRxTxMultipliedArray[4],__ATOMIC_RELAXED);
-
-
-
-    // debugging code by playing stuff
-    if (globalRxTxMultipliedArray[0]==0) {
-      __atomic_store_n(&currentStepSize,0,__ATOMIC_RELAXED);
-    } else {
-      int32_t localStepSize = stepSizes[localRxTxKeyArray[0]]; // 2nd note played always plays C. 
-      localStepSize = localStepSize*pow(2,(localRxTxOctaveArray[0]-4));
-      __atomic_store_n(&currentStepSize,localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
-    }
   }
 }
 
+// Thread 5
+void generateCurrentStepArrayTask(void * pvParameters){
+  const TickType_t xFrequency = 20/portTICK_PERIOD_MS; // convert time in ms to scheduler ticks 
+  TickType_t xLastWakeTime = xTaskGetTickCount(); // store the tick count of the last initiation
+
+  while(1){
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    uint8_t localRxTxOctaveArray[maxNotesStored] = {};
+    uint8_t localRxTxKeyArray[maxNotesStored] = {};
+    uint8_t localRxTxMultipliedArray[maxNotesStored] = {};
+
+    xSemaphoreTake(RxTxArrayMutex, portMAX_DELAY);
+    for (int i=0;i<maxNotesStored;i++){
+      localRxTxOctaveArray[i]=globalRxTxOctaveArray[i];
+      localRxTxKeyArray[i] = globalRxTxKeyArray[i];
+      localRxTxMultipliedArray[i]=globalRxTxMultipliedArray[i];
+    }
+    xSemaphoreGive(RxTxArrayMutex);
+    
+    for (int i=0;i<maxNotesStored;i++){
+      if (localRxTxMultipliedArray[i]!=0){
+        int32_t localStepSize = stepSizes[localRxTxKeyArray[i]]; // 2nd note played always plays C. 
+        localStepSize = localStepSize*pow(2,(localRxTxOctaveArray[i]-4));
+        __atomic_store_n(&currentStepSizeArr[i],localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
+
+      } else {
+        __atomic_store_n(&currentStepSizeArr[i],0,__ATOMIC_RELAXED);
+      }
+    }
+  }
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -453,6 +498,17 @@ void setup() {
     NULL,                // Param passed into the task
     1,                   // Task priority
     &decodeHandle //Pointer to store the task handle
+  );
+
+  // Initialize generateCurrentStepArrayTask() THREAD
+  TaskHandle_t generateCurrentStepArrayHandle = NULL;
+  xTaskCreate(
+    generateCurrentStepArrayTask,   // Function that implements task
+    "generateCurrentStepArray",     // Text name for the task
+    256,                  // Stack size in words, not bytes -> to store all local variables of the functions called in the thread
+    NULL,                // Param passed into the task
+    1,                   // Task priority
+    &generateCurrentStepArrayHandle //Pointer to store the task handle
   );
 
   // Initialize CAN_TX_Task() THREAD
