@@ -368,6 +368,10 @@ void decodeTask(void * pvParameters) {
 
 // Thread 5
 void generateCurrentStepArrayTask(void * pvParameters){
+  /*
+  Check the updated key and octave global arrays and convert the information into a global currentStepSizeArr.
+  */
+
   const TickType_t xFrequency = 20/portTICK_PERIOD_MS; // convert time in ms to scheduler ticks 
   TickType_t xLastWakeTime = xTaskGetTickCount(); // store the tick count of the last initiation
 
@@ -387,10 +391,9 @@ void generateCurrentStepArrayTask(void * pvParameters){
     
     for (int i=0;i<maxNotesStored;i++){
       if (localRxTxMultipliedArray[i]!=0){
-        int32_t localStepSize = stepSizes[localRxTxKeyArray[i]]; // 2nd note played always plays C. 
+        int32_t localStepSize = stepSizes[localRxTxKeyArray[i]]; 
         localStepSize = localStepSize*pow(2,(localRxTxOctaveArray[i]-4));
-        __atomic_store_n(&currentStepSizeArr[i],localStepSize,__ATOMIC_RELAXED); // scale step size by appropriate octave for correct freq
-
+        __atomic_store_n(&currentStepSizeArr[i],localStepSize,__ATOMIC_RELAXED);
       } else {
         __atomic_store_n(&currentStepSizeArr[i],0,__ATOMIC_RELAXED);
       }
@@ -498,7 +501,7 @@ void setup() {
   );
 
 
-  // Initialize Mutex
+  // Initialize Mutexes
   keyArrayMutex = xSemaphoreCreateMutex(); 
   RxTxArrayMutex = xSemaphoreCreateMutex(); 
 
