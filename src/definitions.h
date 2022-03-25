@@ -31,6 +31,7 @@
 //FreeRTOS mutex -> used by different threads to access mutex obj
   SemaphoreHandle_t keyArrayMutex;
   SemaphoreHandle_t RX_MessageMutex;
+  SemaphoreHandle_t RxTxArrayMutex;
   SemaphoreHandle_t CAN_TX_Semaphore;
 
 //Pin definitions

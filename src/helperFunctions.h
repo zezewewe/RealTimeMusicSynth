@@ -95,11 +95,10 @@ class KnobDecoder {
     };
 };
 
-void addToKeyArray(char press, uint8_t octave, uint8_t key)
-{
-  rxtxOctaveArray[rxtxKeyArray_idx] = octave;
-  rxtxKeyArray[rxtxKeyArray_idx] = key;
-  rxtxPressArray[rxtxKeyArray_idx] = press;
+void addToKeyArray(uint8_t receivedMessageArr[]){
+  rxtxPressArray[rxtxKeyArray_idx] = receivedMessageArr[0];
+  rxtxOctaveArray[rxtxKeyArray_idx] = receivedMessageArr[1];
+  rxtxKeyArray[rxtxKeyArray_idx] = receivedMessageArr[2];
   rxtxKeyArray_idx += 1;
 }
 

@@ -198,15 +198,11 @@ void scanKeysTask(void * pvParameters) {
         }
       }
       prevQuartetStates[i] = currentQuartetState; // update quartet
-    }
-    if (rx_or_tx == 2 || rx_or_tx == 0) //If loopback or tx
-    {
-      xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
-    }
-
-    else if (rx_or_tx == 1) // If rx
-    {
-      addToKeyArray(TX_Message[0], TX_Message[1], TX_Message[2]);
+      if (rx_or_tx == 2 || rx_or_tx == 0) {//If loopback or tx
+        xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+      } else if (rx_or_tx == 1) { // If rx
+        addToKeyArray(TX_Message);
+      }
     }
   }
 }
@@ -250,10 +246,10 @@ void displayUpdateTask(void * pvParameters) {
     xSemaphoreGive(RX_MessageMutex);
 
     u8g2.setCursor(66,30);
+    u8g2.print((char) output);
     u8g2.print((char) RX_Message_local[0]);
     u8g2.print(RX_Message_local[1]);
     u8g2.print(RX_Message_local[2]);
-    u8g2.print((char) output);
 
     u8g2.sendBuffer();          // transfer internal memory to the display
   }
@@ -263,22 +259,24 @@ void displayUpdateTask(void * pvParameters) {
 void decodeTask(void * pvParameters) { 
   while(1) {
     uint8_t RX_Message_local[8];
-
+    
     xQueueReceive(msgInQ, RX_Message_local, portMAX_DELAY);
 
+    // update RX_Message for display
     xSemaphoreTake(RX_MessageMutex, portMAX_DELAY);
     for (int i=0;i<8;i++){
       RX_Message[i]=RX_Message_local[i];
     }
     xSemaphoreGive(RX_MessageMutex);
 
-    addToKeyArray(RX_Message[0], RX_Message[1], RX_Message[2]);
 
-    if(rxtxKeyArray_idx>0)
-    {
-      output = popFromPressArray(); //BUG something wrong with popping the char. Output does not return char
-      uint8_t octave_local = popFromOctaveArray();
-      uint8_t key_local = popFromKeyArray(); //decrements idx as well
+    // update local press array
+    addToKeyArray(RX_Message_local);
+
+    if(rxtxKeyArray_idx>0) {
+      output = rxtxPressArray[0]; //BUG something wrong with popping the char. Output does not return char
+      uint8_t octave_local = rxtxOctaveArray[0];
+      uint8_t key_local = rxtxKeyArray[0]; //decrements idx as well
       
       if (output=='R') {
       __atomic_store_n(&currentStepSize,0,__ATOMIC_RELAXED);
@@ -386,6 +384,7 @@ void setup() {
   // Initialize Mutex
   keyArrayMutex = xSemaphoreCreateMutex(); 
   RX_MessageMutex = xSemaphoreCreateMutex(); 
+  RxTxArrayMutex = xSemaphoreCreateMutex(); 
 
   // Creating Semaphore
   CAN_TX_Semaphore = xSemaphoreCreateCounting(3,3); 
